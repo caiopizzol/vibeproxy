@@ -1,4 +1,4 @@
-.PHONY: build app install clean run test help
+.PHONY: build app package install clean run test help
 
 help: ## Show this help message
 	@echo "VibeProxy - macOS Menu Bar App"
@@ -21,6 +21,11 @@ app: ## Create the .app bundle
 	@./create-app-bundle.sh
 	@echo "✅ App bundle created: VibeProxy.app"
 
+package: app ## Create a distributable ZIP and checksum in dist/
+	@echo "📦 Packaging release archive..."
+	@./package-release.sh
+	@echo "✅ Release archive created in dist/"
+
 install: app ## Build and install to /Applications
 	@echo "📲 Installing to /Applications..."
 	@rm -rf "/Applications/VibeProxy.app"
@@ -35,6 +40,7 @@ clean: ## Clean build artifacts
 	@echo "🧹 Cleaning..."
 	@rm -rf src/.build
 	@rm -rf "VibeProxy.app"
+	@rm -rf dist
 	@rm -rf src/Sources/Resources/cli-proxy-api
 	@rm -rf src/Sources/Resources/config.yaml
 	@rm -rf src/Sources/Resources/static

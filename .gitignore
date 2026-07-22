@@ -12,6 +12,7 @@ xcuserdata/
 *.app
 *.zip
 *.dmg
+dist/
 
 # macOS
 .DS_Store

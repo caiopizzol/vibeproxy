@@ -6,10 +6,11 @@
 
 <p align="center">
 <a href="https://automaze.io" rel="nofollow"><img alt="Automaze" src="https://img.shields.io/badge/By-automaze.io-4b3baf" style="max-width: 100%;"></a>
-<a href="https://github.com/automazeio/vibeproxy/blob/main/LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-28a745" style="max-width: 100%;"></a>
-<a href="http://x.com/intent/follow?screen_name=aroussi" rel="nofollow"><img alt="Follow on 𝕏" src="https://img.shields.io/badge/Follow-%F0%9D%95%8F/@aroussi-1c9bf0" style="max-width: 100%;"></a>
-<a href="https://github.com/automazeio/vibeproxy"><img alt="Star this repo" src="https://img.shields.io/github/stars/automazeio/vibeproxy.svg?style=social&amp;label=Star%20this%20repo&amp;maxAge=60" style="max-width: 100%;"></a></p>
+<a href="https://github.com/caiopizzol/vibeproxy/blob/main/LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-28a745" style="max-width: 100%;"></a>
+<a href="https://github.com/caiopizzol/vibeproxy"><img alt="Star this repo" src="https://img.shields.io/github/stars/caiopizzol/vibeproxy.svg?style=social&amp;label=Star%20this%20repo&amp;maxAge=60" style="max-width: 100%;"></a></p>
 </p>
+
+> This fork builds on [automazeio/vibeproxy](https://github.com/automazeio/vibeproxy) and adds compact multi-account usage controls for Claude Code and Codex.
 
 **Stop paying twice for AI.** VibeProxy is a beautiful native macOS menu bar app that lets you use your existing Claude Code, ChatGPT, **Gemini**, **Kimi**, **Qwen**, **Antigravity**, and **Z.AI GLM** subscriptions with powerful AI coding tools like **[Factory Droids](https://app.factory.ai/r/FM8BJHFQ)**.
 
@@ -39,9 +40,12 @@ Built on [CLIProxyAPIPlus](https://github.com/router-for-me/CLIProxyAPIPlus), it
 - 🔐 **Easy Authentication** - Authenticate with Codex, Claude Code, Gemini, Kimi, Qwen, and Antigravity (OAuth), plus Z.AI GLM (API key) directly from the app
 - 🛡️ **Vercel AI Gateway** - Route Claude requests through [Vercel's AI Gateway](https://vercel.com/docs/ai-gateway) for safer access to your Claude Max subscription without risking your account from direct OAuth token usage
 - 👥 **Multi-Account Support** - Connect multiple accounts per provider with automatic round-robin distribution and failover when rate-limited
+- 📊 **Usage Limits** - See 5-hour, weekly, and provider-specific limits for every Claude Code and Codex account
+- ⏱️ **Codex Usage Resets** - Use available reset credits directly from the menu bar
+- 👁️ **Privacy Controls** - Blur account emails before sharing screenshots
+- ⏻ **Account Controls** - Enable or disable individual accounts without opening Settings
 - 🎚️ **Provider Priority** - Enable/disable providers to control which models are available (instant hot reload)
 - 📊 **Real-Time Status** - Live connection status and automatic credential detection
-- 🔄 **Automatic App Updates** - Starting with v1.6, VibeProxy checks for updates daily and installs them seamlessly via Sparkle
 - 🎨 **Beautiful Icons** - Custom icons with dark mode support
 - 💾 **Self-Contained** - Everything bundled inside the .app (server binary, config, static files)
 
@@ -52,18 +56,24 @@ Built on [CLIProxyAPIPlus](https://github.com/router-for-me/CLIProxyAPIPlus), it
 
 ### Download Pre-built Release (Recommended)
 
-1. Go to the [**Releases**](https://github.com/automazeio/vibeproxy/releases) page
+1. Go to the [**Releases**](https://github.com/caiopizzol/vibeproxy/releases) page
 2. Download the appropriate version for your Mac:
    - **Apple Silicon** (M1/M2/M3/M4): `VibeProxy-arm64.zip`
    - **Intel**: `VibeProxy-x86_64.zip` *(untested - please report issues)*
 3. Extract and drag `VibeProxy.app` to `/Applications`
 4. Launch VibeProxy
 
-**Code Signed & Notarized** ✅ - No Gatekeeper warnings, installs seamlessly on macOS.
+Fork releases are currently ad-hoc signed. If macOS blocks the first launch, right-click `VibeProxy.app`, choose **Open**, then confirm.
 
 ### Build from Source
 
 Want to build it yourself? See [**INSTALLATION.md**](INSTALLATION.md) for detailed build instructions.
+
+To create the same ZIP archive and SHA-256 checksum published by GitHub Releases:
+
+```bash
+make package
+```
 
 ## Usage
 
@@ -159,7 +169,7 @@ MIT License - see LICENSE file for details
 
 ## Support
 
-- **Report Issues**: [GitHub Issues](https://github.com/automazeio/vibeproxy/issues)
+- **Report Issues**: [GitHub Issues](https://github.com/caiopizzol/vibeproxy/issues)
 - **Website**: [automaze.io](https://automaze.io)
 
 ---

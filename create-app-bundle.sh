@@ -116,7 +116,7 @@ echo -e "${BLUE}Setting version to: ${VERSION} (build ${BUILD_NUMBER})${NC}"
 # Update SUFeedURL based on architecture (for Sparkle auto-updates)
 TARGET_ARCH="${TARGET_ARCH:-arm64}"
 if [ "$TARGET_ARCH" = "x86_64" ]; then
-    APPCAST_URL="https://raw.githubusercontent.com/automazeio/vibeproxy/main/appcast-x86_64.xml"
+    APPCAST_URL="https://raw.githubusercontent.com/caiopizzol/vibeproxy/main/appcast-fork-x86_64.xml"
     echo -e "${BLUE}Setting Sparkle feed URL for Intel: ${APPCAST_URL}${NC}"
     /usr/libexec/PlistBuddy -c "Set :SUFeedURL ${APPCAST_URL}" "$APP_DIR/Contents/Info.plist"
 fi
