@@ -6,6 +6,62 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [1.8.50] - 2026-01-13
 
+## [1.8.251] - 2026-07-28
+
+### Updated
+- **CLIProxyAPI 7.2.103** - Latest upstream release (#494)
+  - Various upstream improvements and stability enhancements
+
+
+## [1.8.250] - 2026-07-27
+
+### Updated
+- **CLIProxyAPI 7.2.102** - Latest upstream release (#493)
+  - Various upstream improvements and stability enhancements
+
+
+## [1.8.249] - 2026-07-26
+
+### Updated
+- **CLIProxyAPI 7.2.101** - Latest upstream release (#492)
+  - Various upstream improvements and stability enhancements
+
+
+## [1.8.248] - 2026-07-26
+
+### Updated
+- **CLIProxyAPI 7.2.100** - Latest upstream release (#491)
+  - Various upstream improvements and stability enhancements
+
+
+## [1.8.247] - 2026-07-25
+
+### Updated
+- **CLIProxyAPI 7.2.99** - Latest upstream release (#489)
+  - Various upstream improvements and stability enhancements
+
+
+## [1.8.246] - 2026-07-24
+
+### Updated
+- **CLIProxyAPI 7.2.97** - Latest upstream release (#488)
+  - Various upstream improvements and stability enhancements
+
+
+## [1.8.245] - 2026-07-23
+
+### Updated
+- **CLIProxyAPI 7.2.96** - Latest upstream release (#487)
+  - Various upstream improvements and stability enhancements
+
+
+## [1.8.244] - 2026-07-23
+
+### Updated
+- **CLIProxyAPI 7.2.95** - Latest upstream release (#486)
+  - Various upstream improvements and stability enhancements
+
+
 ## [1.8.243] - 2026-07-22
 
 ### Updated
@@ -2115,6 +2171,14 @@ All future changes will be documented here before release.
 
 ---
 
+[1.8.251]: https://github.com/automazeio/vibeproxy/releases/tag/v1.8.251
+[1.8.250]: https://github.com/automazeio/vibeproxy/releases/tag/v1.8.250
+[1.8.249]: https://github.com/automazeio/vibeproxy/releases/tag/v1.8.249
+[1.8.248]: https://github.com/automazeio/vibeproxy/releases/tag/v1.8.248
+[1.8.247]: https://github.com/automazeio/vibeproxy/releases/tag/v1.8.247
+[1.8.246]: https://github.com/automazeio/vibeproxy/releases/tag/v1.8.246
+[1.8.245]: https://github.com/automazeio/vibeproxy/releases/tag/v1.8.245
+[1.8.244]: https://github.com/automazeio/vibeproxy/releases/tag/v1.8.244
 [1.8.243]: https://github.com/automazeio/vibeproxy/releases/tag/v1.8.243
 [1.8.242]: https://github.com/automazeio/vibeproxy/releases/tag/v1.8.242
 [1.8.241]: https://github.com/automazeio/vibeproxy/releases/tag/v1.8.241
