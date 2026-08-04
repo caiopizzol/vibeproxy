@@ -17,7 +17,7 @@ final class QuotaStore: ObservableObject {
     @Published private(set) var isManualRefreshCoolingDown = false
     @Published private(set) var lastUpdated: Date?
 
-    private let client: CLIProxyManagementClient
+    private var client: CLIProxyManagementClient
     private let freshnessInterval: TimeInterval
     private let manualRefreshCooldown: TimeInterval
     private let now: @Sendable () -> Date
@@ -39,11 +39,19 @@ final class QuotaStore: ObservableObject {
         self.now = now
     }
 
+    func updateClient(_ client: CLIProxyManagementClient) {
+        refreshTask?.cancel()
+        refreshTask = nil
+        isRefreshing = false
+        lastUpdated = nil
+        self.client = client
+    }
+
     @MainActor
     func startMonitoring(authManager: AuthManager, serverManager: ServerManager) {
         guard monitoringCancellables.isEmpty else { return }
 
-        Publishers.CombineLatest(authManager.$serviceAccounts, serverManager.$isRunning)
+        Publishers.CombineLatest(authManager.$serviceAccounts, serverManager.$isServerAvailable)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] serviceAccounts, serverIsRunning in
                 guard let self else { return }

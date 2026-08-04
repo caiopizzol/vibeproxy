@@ -525,7 +525,9 @@ struct SettingsView: View {
                         Text("Server status")
                         Spacer()
                         Button(action: {
-                            if serverManager.isRunning {
+                            if serverManager.useExistingServer {
+                                serverManager.probeExistingServer()
+                            } else if serverManager.isRunning {
                                 serverManager.stop()
                             } else {
                                 serverManager.start { _ in }
@@ -533,12 +535,35 @@ struct SettingsView: View {
                         }) {
                             HStack(spacing: 6) {
                                 Circle()
-                                    .fill(serverManager.isRunning ? Color.green : Color.red)
+                                    .fill(serverManager.isServerAvailable ? Color.green : Color.red)
                                     .frame(width: 8, height: 8)
-                                Text(serverManager.isRunning ? "Running" : "Stopped")
+                                Text(serverStatusText)
                             }
                         }
                         .buttonStyle(.plain)
+                    }
+
+                    Toggle("Use an existing server", isOn: $serverManager.useExistingServer)
+
+                    if serverManager.useExistingServer {
+                        TextField("Server URL", text: $serverManager.existingServerURL)
+                            .textFieldStyle(.roundedBorder)
+
+                        SecureField(
+                            "Management password for usage limits",
+                            text: $serverManager.existingServerManagementPassword
+                        )
+                        .textFieldStyle(.roundedBorder)
+
+                        if !serverManager.existingServerURLIsValid {
+                            Text("Enter a complete HTTP or HTTPS URL.")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        } else {
+                            Text("VibeProxy will connect to this server instead of starting its bundled server. The management password is optional unless you want usage limits and dashboard access.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
 
@@ -900,6 +925,13 @@ struct SettingsView: View {
     }
 
     // MARK: - Actions
+
+    private var serverStatusText: String {
+        if serverManager.useExistingServer {
+            return serverManager.isServerAvailable ? "Connected" : "Unavailable"
+        }
+        return serverManager.isRunning ? "Running" : "Stopped"
+    }
     
     private func toggleAccountDisabled(_ account: AuthAccount) {
         if authManager.toggleAccountDisabled(account) {

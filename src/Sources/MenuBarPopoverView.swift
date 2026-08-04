@@ -24,9 +24,9 @@ struct MenuBarPopoverView: View {
                         .font(.headline)
                     HStack(spacing: 5) {
                         Circle()
-                            .fill(serverManager.isRunning ? Color.green : Color.red)
+                            .fill(serverManager.isServerAvailable ? Color.green : Color.red)
                             .frame(width: 7, height: 7)
-                        Text(serverManager.isRunning ? "Running on port \(String(proxyPort))" : "Server stopped")
+                        Text(statusText)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -34,7 +34,7 @@ struct MenuBarPopoverView: View {
 
                 Spacer()
 
-                Button(serverManager.isRunning ? "Stop Server" : "Start Server", action: onToggleServer)
+                Button(serverButtonTitle, action: onToggleServer)
                     .controlSize(.small)
             }
             .padding(14)
@@ -46,7 +46,7 @@ struct MenuBarPopoverView: View {
                     QuotaOverviewView(
                         accounts: quotaAccounts,
                         store: serverManager.quotaStore,
-                        serverIsRunning: serverManager.isRunning,
+                        serverIsRunning: serverManager.isServerAvailable,
                         hideAccountEmails: hideAccountEmails,
                         onToggleEmailPrivacy: { hideAccountEmails.toggle() },
                         onToggleAccount: toggleAccount
@@ -65,14 +65,14 @@ struct MenuBarPopoverView: View {
                 MenuActionRow(
                     title: "Copy Server URL",
                     systemImage: "doc.on.doc",
-                    isEnabled: serverManager.isRunning,
+                    isEnabled: serverManager.selectedServerURL != nil,
                     action: onCopyServerURL
                 )
                 .keyboardShortcut("c", modifiers: .command)
                 MenuActionRow(
                     title: "Open Dashboard",
                     systemImage: "gauge",
-                    isEnabled: serverManager.isRunning,
+                    isEnabled: serverManager.isServerAvailable,
                     action: onOpenDashboard
                 )
                 .keyboardShortcut("d", modifiers: .command)
@@ -84,6 +84,20 @@ struct MenuBarPopoverView: View {
             .padding(8)
         }
         .frame(width: 480)
+    }
+
+    private var statusText: String {
+        if serverManager.useExistingServer {
+            return serverManager.isServerAvailable ? "Connected to existing server" : "Existing server unavailable"
+        }
+        return serverManager.isServerAvailable ? "Running on port \(String(proxyPort))" : "Server stopped"
+    }
+
+    private var serverButtonTitle: String {
+        if serverManager.useExistingServer {
+            return "Check Server"
+        }
+        return serverManager.isRunning ? "Stop Server" : "Start Server"
     }
 
     private func toggleAccount(_ account: AuthAccount) -> Bool {

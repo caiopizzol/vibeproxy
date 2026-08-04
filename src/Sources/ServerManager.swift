@@ -54,12 +54,43 @@ class ServerManager: ObservableObject {
     private var process: Process?
     private var activeAuthProcess: Process?
     @Published private(set) var isRunning = false
+    @Published private(set) var isServerAvailable = false
+    @Published var useExistingServer: Bool {
+        didSet {
+            guard useExistingServer != oldValue else { return }
+            UserDefaults.standard.set(useExistingServer, forKey: ExistingServerConfiguration.enabledKey)
+            configureQuotaClient()
+            onServerConnectionModeChanged?()
+        }
+    }
+    @Published var existingServerURL: String {
+        didSet {
+            guard existingServerURL != oldValue else { return }
+            UserDefaults.standard.set(existingServerURL, forKey: ExistingServerConfiguration.urlKey)
+            guard useExistingServer else { return }
+            configureQuotaClient()
+            startExistingServerMonitoring()
+        }
+    }
+    @Published var existingServerManagementPassword: String {
+        didSet {
+            guard existingServerManagementPassword != oldValue else { return }
+            if !ExistingServerPasswordStore.save(existingServerManagementPassword) {
+                addLog("⚠️ Could not save the existing server management password")
+            }
+            guard useExistingServer else { return }
+            configureQuotaClient()
+            NotificationCenter.default.post(name: .serverStatusChanged, object: nil)
+        }
+    }
     private(set) var port = ProxyPorts.backend
     @Published private(set) var customProviders: [CustomProviderDefinition] = []
     @Published private(set) var customProviderCredentials: [String: [CustomProviderCredential]] = [:]
     @Published private(set) var configErrorMessage: String?
     let quotaStore: QuotaStore
     private let managementSecret: String
+    private var existingServerHealthTimer: DispatchSourceTimer?
+    private var existingServerProbeID = UUID()
 
     /// Provider enabled states - when disabled, models are excluded via oauth-excluded-models
     @Published var enabledProviders: [String: Bool] = [:] {
@@ -82,6 +113,7 @@ class ServerManager: ObservableObject {
         }
     }
     var onVercelConfigChanged: (() -> Void)?
+    var onServerConnectionModeChanged: (() -> Void)?
 
     /// Helper class to capture output text across closures
     private class OutputCapture {
@@ -135,11 +167,23 @@ class ServerManager: ObservableObject {
     var onLogUpdate: (([String]) -> Void)?
 
     init() {
+        let defaults = UserDefaults.standard
+        let useExistingServer = defaults.bool(forKey: ExistingServerConfiguration.enabledKey)
+        let existingServerURL = defaults.string(forKey: ExistingServerConfiguration.urlKey)
+            ?? ExistingServerConfiguration.defaultURL
+        let existingServerManagementPassword = ExistingServerPasswordStore.load()
         let managementSecret = RuntimeManagementSecret.generate()
+        self.useExistingServer = useExistingServer
+        self.existingServerURL = existingServerURL
+        self.existingServerManagementPassword = existingServerManagementPassword
         self.managementSecret = managementSecret
+        let quotaBaseURL = useExistingServer
+            ? ExistingServerConfiguration.normalizedURL(from: existingServerURL)
+                ?? URL(string: ExistingServerConfiguration.defaultURL)!
+            : URL(string: "http://127.0.0.1:\(ProxyPorts.backend)")!
         quotaStore = QuotaStore(client: CLIProxyManagementClient(
-            baseURL: URL(string: "http://127.0.0.1:\(ProxyPorts.backend)")!,
-            managementSecret: managementSecret
+            baseURL: quotaBaseURL,
+            managementSecret: useExistingServer ? existingServerManagementPassword : managementSecret
         ))
         logBuffer = RingBuffer(capacity: maxLogLines)
         if let saved = UserDefaults.standard.dictionary(forKey: "enabledProviders") as? [String: Bool] {
@@ -149,6 +193,97 @@ class ServerManager: ObservableObject {
         vercelApiKey = UserDefaults.standard.string(forKey: "vercelApiKey") ?? ""
         reloadCustomProviders()
         markObservedConfigInputsCurrent()
+    }
+
+    var selectedServerURL: URL? {
+        if useExistingServer {
+            return ExistingServerConfiguration.normalizedURL(from: existingServerURL)
+        }
+        return URL(string: "http://127.0.0.1:\(ProxyPorts.publicAPI)")
+    }
+
+    var selectedManagementURL: URL? {
+        let baseURL: URL?
+        if useExistingServer {
+            baseURL = ExistingServerConfiguration.normalizedURL(from: existingServerURL)
+        } else {
+            baseURL = URL(string: "http://127.0.0.1:\(ProxyPorts.backend)")
+        }
+        guard let baseURL else { return nil }
+        return ExistingServerConfiguration.endpoint(path: "/management.html", relativeTo: baseURL)
+    }
+
+    var existingServerURLIsValid: Bool {
+        ExistingServerConfiguration.normalizedURL(from: existingServerURL) != nil
+    }
+
+    func startExistingServerMonitoring() {
+        stopExistingServerMonitoring(updateAvailability: false)
+        guard useExistingServer,
+              ExistingServerConfiguration.normalizedURL(from: existingServerURL) != nil else {
+            setServerAvailable(false)
+            return
+        }
+
+        probeExistingServer()
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + 10, repeating: 10)
+        timer.setEventHandler { [weak self] in
+            self?.probeExistingServer()
+        }
+        timer.resume()
+        existingServerHealthTimer = timer
+    }
+
+    func stopExistingServerMonitoring(updateAvailability: Bool = true) {
+        existingServerHealthTimer?.cancel()
+        existingServerHealthTimer = nil
+        existingServerProbeID = UUID()
+        if updateAvailability {
+            setServerAvailable(false)
+        }
+    }
+
+    func probeExistingServer() {
+        guard useExistingServer,
+              let baseURL = ExistingServerConfiguration.normalizedURL(from: existingServerURL),
+              let healthURL = ExistingServerConfiguration.endpoint(path: "/v1/models", relativeTo: baseURL) else {
+            setServerAvailable(false)
+            return
+        }
+
+        let probeID = UUID()
+        existingServerProbeID = probeID
+        var request = URLRequest(url: healthURL)
+        request.timeoutInterval = 3
+        URLSession.shared.dataTask(with: request) { [weak self] _, response, _ in
+            let statusCode = (response as? HTTPURLResponse)?.statusCode
+            let isAvailable = statusCode.map { (200 ..< 500).contains($0) } ?? false
+            DispatchQueue.main.async {
+                guard let self, self.existingServerProbeID == probeID, self.useExistingServer else { return }
+                self.setServerAvailable(isAvailable)
+            }
+        }.resume()
+    }
+
+    private func configureQuotaClient() {
+        let baseURL: URL
+        let password: String
+        if useExistingServer {
+            baseURL = ExistingServerConfiguration.normalizedURL(from: existingServerURL)
+                ?? URL(string: ExistingServerConfiguration.defaultURL)!
+            password = existingServerManagementPassword
+        } else {
+            baseURL = URL(string: "http://127.0.0.1:\(ProxyPorts.backend)")!
+            password = managementSecret
+        }
+        quotaStore.updateClient(CLIProxyManagementClient(baseURL: baseURL, managementSecret: password))
+    }
+
+    private func setServerAvailable(_ available: Bool) {
+        guard isServerAvailable != available else { return }
+        isServerAvailable = available
+        NotificationCenter.default.post(name: .serverStatusChanged, object: nil)
     }
 
     /// Check if a provider is enabled (defaults to true if not set)
@@ -285,6 +420,7 @@ class ServerManager: ObservableObject {
             
             DispatchQueue.main.async {
                 self?.isRunning = false
+                self?.setServerAvailable(false)
                 self?.activeConfigPath = ""
                 self?.addLog("Server stopped with code: \(process.terminationStatus)")
                 NotificationCenter.default.post(name: .serverStatusChanged, object: nil)
@@ -295,6 +431,7 @@ class ServerManager: ObservableObject {
             try process?.run()
             DispatchQueue.main.async {
                 self.isRunning = true
+                self.setServerAvailable(true)
                 self.activeConfigPath = configPath
             }
             addLog("✓ Server started on port \(port)")
@@ -320,6 +457,7 @@ class ServerManager: ObservableObject {
         guard let process = process else {
             DispatchQueue.main.async {
                 self.isRunning = false
+                self.setServerAvailable(false)
                 NotificationCenter.default.post(name: .serverStatusChanged, object: nil)
                 completion?()
             }
@@ -351,6 +489,7 @@ class ServerManager: ObservableObject {
             DispatchQueue.main.async {
                 self.process = nil
                 self.isRunning = false
+                self.setServerAvailable(false)
                 self.activeConfigPath = ""
                 self.addLog("✓ Server stopped")
                 NotificationCenter.default.post(name: .serverStatusChanged, object: nil)

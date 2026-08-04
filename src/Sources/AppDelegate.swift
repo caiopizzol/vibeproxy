@@ -44,14 +44,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         serverManager.onVercelConfigChanged = { [weak self] in
             self?.syncVercelConfig()
         }
+        serverManager.onServerConnectionModeChanged = { [weak self] in
+            DispatchQueue.main.async {
+                self?.applyServerConnectionMode()
+            }
+        }
         
         // Warm commonly used icons to avoid first-use disk hits
         preloadIcons()
         
         configureNotifications()
 
-        // Start server automatically
-        startServer()
+        if serverManager.useExistingServer {
+            serverManager.startExistingServerMonitoring()
+        } else {
+            startServer()
+        }
 
         // Register for notifications
         NotificationCenter.default.addObserver(
@@ -188,6 +196,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
             return
         }
         authManager.checkAuthStatus()
+        if serverManager.useExistingServer {
+            serverManager.probeExistingServer()
+        }
         statusPopover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -225,6 +236,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     }
 
     @objc func toggleServer() {
+        if serverManager.useExistingServer {
+            serverManager.probeExistingServer()
+            return
+        }
         if serverManager.isRunning {
             stopServer()
         } else {
@@ -233,6 +248,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
     }
 
     func startServer() {
+        guard !serverManager.useExistingServer else {
+            serverManager.startExistingServerMonitoring()
+            return
+        }
         // Start the thinking proxy first (port 8317)
         thinkingProxy.start()
         
@@ -277,25 +296,38 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         }
     }
 
-    func stopServer() {
+    func stopServer(completion: (() -> Void)? = nil) {
         // Stop the thinking proxy first to stop accepting new requests
         thinkingProxy.stop()
         
         // Then stop CLIProxyAPI backend
-        serverManager.stop()
-        
-        updateMenuBarStatus()
+        serverManager.stop { [weak self] in
+            self?.updateMenuBarStatus()
+            completion?()
+        }
+    }
+
+    private func applyServerConnectionMode() {
+        if serverManager.useExistingServer {
+            stopServer { [weak self] in
+                self?.serverManager.startExistingServerMonitoring()
+            }
+        } else {
+            serverManager.stopExistingServerMonitoring()
+            startServer()
+        }
     }
 
     @objc func copyServerURL() {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString("http://localhost:\(thinkingProxy.proxyPort)", forType: .string)
+        guard let serverURL = serverManager.selectedServerURL else { return }
+        pasteboard.setString(serverURL.absoluteString, forType: .string)
         showNotification(title: "Copied", body: "Server URL copied to clipboard")
     }
 
     @objc func openDashboard() {
-        if let url = URL(string: "http://localhost:\(ProxyPorts.backend)/management.html") {
+        if let url = serverManager.selectedManagementURL {
             NSWorkspace.shared.open(url)
         }
     }
@@ -313,20 +345,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
 
     @objc func updateMenuBarStatus() {
         if let button = statusItem.button {
-            let iconName = serverManager.isRunning ? "icon-active.png" : "icon-inactive.png"
-            let fallbackSymbol = serverManager.isRunning ? "network" : "network.slash"
-            button.toolTip = serverManager.isRunning
-                ? "VibeProxy running on port \(thinkingProxy.proxyPort)"
-                : "VibeProxy stopped"
+            let iconName = serverManager.isServerAvailable ? "icon-active.png" : "icon-inactive.png"
+            let fallbackSymbol = serverManager.isServerAvailable ? "network" : "network.slash"
+            button.toolTip = serverManager.isServerAvailable
+                ? (serverManager.useExistingServer ? "VibeProxy connected to existing server" : "VibeProxy running on port \(thinkingProxy.proxyPort)")
+                : (serverManager.useExistingServer ? "Existing server unavailable" : "VibeProxy stopped")
             
             if let icon = IconCatalog.shared.image(named: iconName, resizedTo: NSSize(width: 18, height: 18), template: true) {
                 button.image = icon
-                NSLog("[MenuBar] Loaded %@ icon from cache", serverManager.isRunning ? "active" : "inactive")
+                NSLog("[MenuBar] Loaded %@ icon from cache", serverManager.isServerAvailable ? "active" : "inactive")
             } else {
-                let fallback = NSImage(systemSymbolName: fallbackSymbol, accessibilityDescription: serverManager.isRunning ? "Running" : "Stopped")
+                let fallback = NSImage(systemSymbolName: fallbackSymbol, accessibilityDescription: serverManager.isServerAvailable ? "Running" : "Stopped")
                 fallback?.isTemplate = true
                 button.image = fallback
-                NSLog("[MenuBar] Failed to load %@ icon; using fallback", serverManager.isRunning ? "active" : "inactive")
+                NSLog("[MenuBar] Failed to load %@ icon; using fallback", serverManager.isServerAvailable ? "active" : "inactive")
             }
         }
     }
@@ -366,6 +398,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         NotificationCenter.default.removeObserver(self, name: .serverStatusChanged, object: nil)
         NotificationCenter.default.removeObserver(self, name: .authDirectoryChanged, object: nil)
         pendingAuthRefresh?.cancel()
+        serverManager.stopExistingServerMonitoring(updateAvailability: false)
         authFileMonitor?.cancel()
         authFileMonitor = nil
         // Final cleanup - stop server if still running

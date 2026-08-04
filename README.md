@@ -37,6 +37,7 @@ Built on [CLIProxyAPIPlus](https://github.com/router-for-me/CLIProxyAPIPlus), it
 
 - 🎯 **Native macOS Experience** - Clean, native SwiftUI interface that feels right at home on macOS
 - 🚀 **One-Click Server Management** - Start/stop the proxy server from your menu bar
+- 🔌 **Existing Server Mode** - Connect the app to an already-running CLIProxyAPI server instead of launching another process
 - 🔐 **Easy Authentication** - Authenticate with Codex, Claude Code, Gemini, Kimi, Qwen, and Antigravity (OAuth), plus Z.AI GLM (API key) directly from the app
 - 🛡️ **Vercel AI Gateway** - Route Claude requests through [Vercel's AI Gateway](https://vercel.com/docs/ai-gateway) for safer access to your Claude Max subscription without risking your account from direct OAuth token usage
 - 👥 **Multi-Account Support** - Connect multiple accounts per provider with automatic round-robin distribution and failover when rate-limited
@@ -102,6 +103,8 @@ When you click "Add Account" for Z.AI GLM:
 - **Toggle Server**: Click the status (Running/Stopped) to start/stop
 - **Menu Bar Icon**: Shows active/inactive state
 - **Launch at Login**: Toggle to start VibeProxy automatically
+
+To use a server that is already running, open Settings and enable **Use an existing server**. Enter its HTTP or HTTPS URL. VibeProxy will monitor that endpoint and will not launch its bundled server. Add the server's management password if you also want usage limits and dashboard access; VibeProxy stores it in macOS Keychain.
 
 ## Requirements
 

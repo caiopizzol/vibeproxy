@@ -19,7 +19,7 @@ struct QuotaOverviewView: View {
                         .font(.headline)
 
                     if !serverIsRunning {
-                        Text("Start the server to refresh quotas")
+                        Text("Connect to the server to refresh quotas")
                             .foregroundColor(.secondary)
                     } else if let lastUpdated = store.lastUpdated {
                         Text("Updated \(lastUpdated.formatted(date: .omitted, time: .shortened))")
