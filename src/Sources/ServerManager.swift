@@ -115,10 +115,6 @@ class ServerManager: ObservableObject {
     var onVercelConfigChanged: (() -> Void)?
     var onServerConnectionModeChanged: (() -> Void)?
 
-    /// Helper class to capture output text across closures
-    private class OutputCapture {
-        var text = ""
-    }
     private var logBuffer: RingBuffer<String>
     private let maxLogLines = 1000
     private let processQueue = DispatchQueue(label: "io.automaze.vibeproxy.server-process", qos: .userInitiated)
@@ -551,16 +547,12 @@ class ServerManager: ObservableObject {
         authProcess.standardError = errorPipe
         authProcess.standardInput = inputPipe
         
-        // For Copilot, we need to capture the device code from output
-        let capture = OutputCapture()
-        
-        if case .copilotLogin = command {
-            outputPipe.fileHandleForReading.readabilityHandler = { handle in
-                let data = handle.availableData
-                if let str = String(data: data, encoding: .utf8), !str.isEmpty {
-                    capture.text += str
-                }
-            }
+        let outputCapture = AuthenticationOutputCapture()
+
+        outputPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            guard let output = String(data: data, encoding: .utf8), !output.isEmpty else { return }
+            self?.handleAuthenticationOutput(output, capture: outputCapture)
         }
         
         // For Gemini login, automatically send newline to accept default project
@@ -638,23 +630,21 @@ class ServerManager: ObservableObject {
                     // For Copilot, try to extract the device code from output
                     if case .copilotLogin = command {
                         // Extract code from output like "enter the code: XXXX-XXXX"
-                        if let codeRange = capture.text.range(of: "enter the code: "),
-                           let endRange = capture.text[codeRange.upperBound...].range(of: "\n") {
-                            let code = String(capture.text[codeRange.upperBound..<endRange.lowerBound]).trimmingCharacters(in: .whitespaces)
-                            // Copy code to clipboard
+                        if let codeRange = outputCapture.text.range(of: "enter the code: "),
+                           let endRange = outputCapture.text[codeRange.upperBound...].range(of: "\n") {
+                            let code = String(outputCapture.text[codeRange.upperBound..<endRange.lowerBound]).trimmingCharacters(in: .whitespaces)
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(code, forType: .string)
                             completion(true, "🌐 Browser opened for GitHub authentication.\n\n📋 Code copied to clipboard:\n\n\(code)\n\nJust paste it in the browser!\n\nThe app will automatically detect when you're authenticated.")
                             return
-                        } else if capture.text.contains("enter the code:") {
+                        } else if outputCapture.text.contains("enter the code:") {
                             // Try simpler extraction
-                            let lines = capture.text.components(separatedBy: "\n")
+                            let lines = outputCapture.text.components(separatedBy: "\n")
                             for line in lines {
                                 if line.contains("enter the code:") {
                                     let parts = line.components(separatedBy: "enter the code:")
                                     if parts.count > 1 {
                                         let code = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
-                                        // Copy code to clipboard
                                         NSPasteboard.general.clearContents()
                                         NSPasteboard.general.setString(code, forType: .string)
                                         completion(true, "🌐 Browser opened for GitHub authentication.\n\n📋 Code copied to clipboard:\n\n\(code)\n\nJust paste it in the browser!\n\nThe app will automatically detect when you're authenticated.")
@@ -667,15 +657,11 @@ class ServerManager: ObservableObject {
                         completion(true, "🌐 Browser opened for GitHub authentication.\n\nCheck your terminal or the opened browser for the device code.\n\nThe app will automatically detect when you're authenticated.")
                         return
                     }
-                    
+
                     completion(true, "🌐 Browser opened for authentication.\n\nPlease complete the login in your browser.\n\nThe app will automatically detect when you're authenticated.")
                 } else {
-                    // Process died quickly - check for error
-                    let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+                    let output = outputCapture.text
                     let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                    
-                    var output = String(data: outputData, encoding: .utf8) ?? ""
-                    if output.isEmpty { output = capture.text }
                     let error = String(data: errorData, encoding: .utf8) ?? ""
                     
                     NSLog("[Auth] Authentication process exited before completing")
@@ -696,6 +682,17 @@ class ServerManager: ObservableObject {
             clearActiveAuthProcess(authProcess)
             NSLog("[Auth] Failed to start authentication process")
             completion(false, "Failed to start auth process: \(error.localizedDescription)")
+        }
+    }
+
+    private func handleAuthenticationOutput(_ output: String, capture: AuthenticationOutputCapture) {
+        guard let loginURL = capture.append(output) else { return }
+
+        DispatchQueue.main.async { [weak self] in
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(loginURL, forType: .string)
+            NotificationCenter.default.post(name: .authenticationLoginURLCopied, object: nil)
+            self?.addLog("✓ Authentication login URL copied to clipboard")
         }
     }
 

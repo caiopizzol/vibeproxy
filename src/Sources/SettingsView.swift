@@ -498,6 +498,7 @@ struct SettingsView: View {
     @State private var showingAuthResult = false
     @State private var authResultMessage = ""
     @State private var authResultSuccess = false
+    @State private var authLoginURLCopied = false
     @State private var showingQwenEmailPrompt = false
     @State private var qwenEmail = ""
     @State private var showingZaiApiKeyPrompt = false
@@ -917,10 +918,20 @@ struct SettingsView: View {
         .onReceive(NotificationCenter.default.publisher(for: .authDirectoryChanged)) { _ in
             authManager.checkAuthStatus()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .authenticationLoginURLCopied)) { _ in
+            authLoginURLCopied = true
+        }
         .alert("Authentication Result", isPresented: $showingAuthResult) {
-            Button("OK", role: .cancel) { }
+            Button("OK", role: .cancel) {
+                authLoginURLCopied = false
+            }
         } message: {
-            Text(authResultMessage)
+            if authLoginURLCopied {
+                Text(authResultMessage)
+                    + Text("\n\n✓ Copied to clipboard").foregroundColor(.green)
+            } else {
+                Text(authResultMessage)
+            }
         }
     }
 
@@ -975,6 +986,7 @@ struct SettingsView: View {
     
     private func connectService(_ serviceType: ServiceType) {
         authenticatingService = serviceType
+        authLoginURLCopied = false
         NSLog("[SettingsView] Starting %@ authentication", serviceType.displayName)
         
         let command: AuthCommand
@@ -1035,6 +1047,7 @@ struct SettingsView: View {
     
     private func startQwenAuth(email: String) {
         authenticatingService = .qwen
+        authLoginURLCopied = false
         NSLog("[SettingsView] Starting Qwen authentication")
         
         serverManager.runAuthCommand(.qwenLogin(email: email)) { success, output in
