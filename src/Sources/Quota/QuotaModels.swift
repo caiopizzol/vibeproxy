@@ -4,12 +4,14 @@ enum QuotaProvider: String, CaseIterable, Hashable, Sendable {
     case anthropic = "claude"
     case openAI = "codex"
     case xai = "xai"
+    case muse = "muse"
 
     var displayName: String {
         switch self {
         case .anthropic: return "Anthropic"
         case .openAI: return "OpenAI"
         case .xai: return "Grok"
+        case .muse: return "Muse"
         }
     }
 
@@ -18,6 +20,7 @@ enum QuotaProvider: String, CaseIterable, Hashable, Sendable {
         case .anthropic: return "icon-claude.png"
         case .openAI: return "icon-codex.png"
         case .xai: return "icon-grok.png"
+        case .muse: return ""
         }
     }
 

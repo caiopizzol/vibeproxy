@@ -63,7 +63,7 @@ struct QuotaOverviewView: View {
             }
 
             if accounts.isEmpty {
-                Text("Add an Anthropic, OpenAI, or Grok account to see its usage limits.")
+                Text("Add an Anthropic, OpenAI, Grok, or Muse account to see its usage limits.")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -341,7 +341,7 @@ private struct QuotaProviderGroupView: View {
                 .resizable()
                 .renderingMode(.template)
                 .frame(width: 16, height: 16)
-        } else if provider == .xai {
+        } else if provider == .xai || provider == .muse {
             Image(systemName: "sparkles")
                 .frame(width: 16, height: 16)
         }

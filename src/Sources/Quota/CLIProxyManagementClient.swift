@@ -96,9 +96,10 @@ struct CLIProxyManagementClient: Sendable {
         let template = try quotaTemplate(provider: provider, authFile: authFile)
         let upstreamBody = try await performAPICall(
             authFile: authFile,
-            method: "GET",
+            method: provider == .muse ? "POST" : "GET",
             url: template.url,
-            headers: template.headers
+            headers: template.headers,
+            data: provider == .muse ? "{}" : nil
         )
         return try decode(upstreamBody, provider: provider)
     }
@@ -231,6 +232,11 @@ struct CLIProxyManagementClient: Sendable {
                     "anthropic-beta": "oauth-2025-04-20"
                 ]
             )
+        case .muse:
+            return QuotaTemplate(
+                url: "https://api.meta.ai/muse-code/key",
+                headers: ["Authorization": "Bearer $TOKEN$", "Content-Type": "application/json", "x-api-version": "1.0.0"]
+            )
         case .xai:
             return QuotaTemplate(
                 url: "https://cli-chat-proxy.grok.com/v1/billing?format=credits",
@@ -263,6 +269,7 @@ struct CLIProxyManagementClient: Sendable {
             case .anthropic: return try ClaudeQuotaDecoder.decode(data, fetchedAt: now())
             case .openAI: return try CodexQuotaDecoder.decode(data, fetchedAt: now())
             case .xai: return try GrokQuotaDecoder.decode(data, fetchedAt: now())
+            case .muse: return try MuseQuotaDecoder.decode(data, fetchedAt: now())
             }
         } catch let failure as QuotaFailure {
             throw failure

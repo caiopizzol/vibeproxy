@@ -1,5 +1,6 @@
 enum ServiceConnectionAction: Equatable {
     case authCommand(AuthCommand)
+    case importMuseLogin
     case promptForQwenEmail
     case promptForZAIAPIKey
 }
@@ -17,6 +18,8 @@ extension ServiceType {
             return .authCommand(.geminiLogin)
         case .kimi:
             return .authCommand(.kimiLogin)
+        case .muse:
+            return .importMuseLogin
         case .xai:
             return .authCommand(.xaiLogin)
         case .qwen:

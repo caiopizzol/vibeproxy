@@ -7,6 +7,7 @@ extension QuotaProvider {
         case .claude: self = .anthropic
         case .codex: self = .openAI
         case .xai: self = .xai
+        case .muse: self = .muse
         default: return nil
         }
     }
@@ -59,6 +60,7 @@ final class QuotaStore: ObservableObject {
                 let accounts = (serviceAccounts[.claude]?.accounts ?? [])
                     + (serviceAccounts[.codex]?.accounts ?? [])
                     + (serviceAccounts[.xai]?.accounts ?? [])
+                    + (serviceAccounts[.muse]?.accounts ?? [])
                 let accountsChanged = accounts != self.monitoredAccounts
                 let serverBecameRunning = serverIsRunning && !self.monitoredServerIsRunning
                 self.monitoredAccounts = accounts

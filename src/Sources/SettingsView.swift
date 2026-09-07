@@ -708,6 +708,25 @@ struct SettingsView: View {
                     ) { EmptyView() }
 
                     ServiceRow(
+                        serviceType: .muse,
+                        iconName: "",
+                        iconSystemName: "sparkles",
+                        accounts: authManager.accounts(for: .muse),
+                        isAuthenticating: authenticatingService == .muse,
+                        helpText: "Import your Muse CLI login into the proxy credential folder. It syncs to your connected proxy when credential sync is enabled. The proxy needs the Muse plugin.",
+                        isEnabled: serverManager.isProviderEnabled("muse"),
+                        isToggleLocked: serverManager.isProviderToggleLocked("muse"),
+                        toggleHelpText: serverManager.providerConfigLockReason("muse"),
+                        disabledReasonText: serverManager.providerConfigLockReason("muse"),
+                        customTitle: nil,
+                        onConnect: { connectService(.muse) },
+                        onDisconnect: { account in disconnectAccount(account) },
+                        onToggleDisabled: { account in toggleAccountDisabled(account) },
+                        onToggleEnabled: { enabled in serverManager.setProviderEnabled("muse", enabled: enabled) },
+                        onExpandChange: { expanded in expandedRowCount += expanded ? 1 : -1 }
+                    ) { EmptyView() }
+
+                    ServiceRow(
                         serviceType: .copilot,
                         iconName: "icon-copilot.png",
                         iconSystemName: nil,
@@ -999,6 +1018,21 @@ struct SettingsView: View {
         switch serviceType.connectionAction {
         case .authCommand(let authCommand):
             command = authCommand
+        case .importMuseLogin:
+            Task { @MainActor in
+                defer { authenticatingService = nil }
+                do {
+                    try await Task.detached { try MuseConnection.importLogin() }.value
+                    authManager.checkAuthStatus()
+                    authResultSuccess = true
+                    authResultMessage = "Muse login imported. The connected proxy needs the Muse plugin to serve its model and usage."
+                } catch {
+                    authResultSuccess = false
+                    authResultMessage = error.localizedDescription
+                }
+                showingAuthResult = true
+            }
+            return
         case .promptForQwenEmail:
             authenticatingService = nil
             return // handled separately with email prompt
@@ -1045,6 +1079,8 @@ struct SettingsView: View {
             return "🌐 Browser opened for Gemini authentication.\n\nPlease complete the login in your browser.\n\n⚠️ Note: If you have multiple projects, the default project will be used."
         case .kimi:
             return "🌐 Browser opened for Kimi authentication.\n\nPlease complete the login in your browser.\n\nThe app will automatically detect your Kimi account."
+        case .muse:
+            return "Muse login imported."
         case .xai:
             return "Grok Build connected. You can now use its models through the proxy."
         case .qwen:

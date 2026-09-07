@@ -1041,6 +1041,16 @@ class ServerManager: ObservableObject {
             managedZAIProviderName: ProviderCatalog.managedZAIProviderName
         )
         
+        if let resourcePath = Bundle.main.resourcePath,
+           FileManager.default.fileExists(atPath: resourcePath + "/muse-plugins/muse.dylib"),
+           mergedRoot["plugins"] == nil {
+            mergedRoot["plugins"] = [
+                "enabled": true,
+                "dir": resourcePath + "/muse-plugins",
+                "configs": ["muse": ["enabled": true]]
+            ]
+        }
+
         let mergedConfigPath = authDir.appendingPathComponent(CustomProviderConstants.mergedConfigFilename)
         if mergedRoot["api-keys"] == nil,
            case .success(let existingRuntimeRoot) = loadYAMLDictionary(atPath: mergedConfigPath.path) {

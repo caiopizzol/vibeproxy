@@ -13,7 +13,7 @@ struct MenuBarPopoverView: View {
     let onQuit: () -> Void
 
     private var quotaAccounts: [AuthAccount] {
-        authManager.accounts(for: .claude) + authManager.accounts(for: .codex) + authManager.accounts(for: .xai)
+        authManager.accounts(for: .claude) + authManager.accounts(for: .codex) + authManager.accounts(for: .xai) + authManager.accounts(for: .muse)
     }
 
     var body: some View {

@@ -17,6 +17,13 @@ BUNDLE_ID="com.cliproxyapi.menubar"
 BUILD_DIR="$SRC_DIR/.build/release"
 APP_DIR="$PROJECT_DIR/$APP_NAME.app"
 
+# Build the Muse provider for the bundled proxy.
+PLUGIN_ARCH="${TARGET_ARCH:-$(go env GOARCH)}"
+if [ "$PLUGIN_ARCH" = "x86_64" ]; then PLUGIN_ARCH=amd64; fi
+mkdir -p "$SRC_DIR/Sources/Resources/muse-plugins"
+(cd "$PROJECT_DIR/muse-plugin" && CGO_ENABLED=1 GOARCH="$PLUGIN_ARCH" go build -buildmode=c-shared -o "$SRC_DIR/Sources/Resources/muse-plugins/muse.dylib" .)
+rm -f "$SRC_DIR/Sources/Resources/muse-plugins/muse.h"
+
 # Build the Swift executable first
 echo -e "${BLUE}Building Swift executable (release)...${NC}"
 cd "$SRC_DIR"
