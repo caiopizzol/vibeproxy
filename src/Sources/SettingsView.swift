@@ -689,6 +689,25 @@ struct SettingsView: View {
                     ) { EmptyView() }
 
                     ServiceRow(
+                        serviceType: .xai,
+                        iconName: "",
+                        iconSystemName: "sparkles",
+                        accounts: authManager.accounts(for: .xai),
+                        isAuthenticating: authenticatingService == .xai,
+                        helpText: "Connect your Grok Build account using a browser and device code.",
+                        isEnabled: serverManager.isProviderEnabled("xai"),
+                        isToggleLocked: serverManager.isProviderToggleLocked("xai"),
+                        toggleHelpText: serverManager.providerConfigLockReason("xai"),
+                        disabledReasonText: serverManager.providerConfigLockReason("xai"),
+                        customTitle: nil,
+                        onConnect: { connectService(.xai) },
+                        onDisconnect: { account in disconnectAccount(account) },
+                        onToggleDisabled: { account in toggleAccountDisabled(account) },
+                        onToggleEnabled: { enabled in serverManager.setProviderEnabled("xai", enabled: enabled) },
+                        onExpandChange: { expanded in expandedRowCount += expanded ? 1 : -1 }
+                    ) { EmptyView() }
+
+                    ServiceRow(
                         serviceType: .copilot,
                         iconName: "icon-copilot.png",
                         iconSystemName: nil,
@@ -776,7 +795,6 @@ struct SettingsView: View {
                 }
             }
             .formStyle(.grouped)
-            .scrollDisabled(expandedRowCount == 0)
 
             Spacer()
                 .frame(height: 6)
@@ -989,7 +1007,10 @@ struct SettingsView: View {
             return // handled separately with API key prompt
         }
         
-        serverManager.runAuthCommand(command) { success, output in
+        serverManager.runAuthCommand(command, onPrompt: { prompt in
+            authResultMessage = prompt
+            showingAuthResult = true
+        }) { success, output in
             NSLog("[SettingsView] Auth completed - success: %d", success)
             DispatchQueue.main.async {
                 self.authenticatingService = nil
@@ -1024,6 +1045,8 @@ struct SettingsView: View {
             return "🌐 Browser opened for Gemini authentication.\n\nPlease complete the login in your browser.\n\n⚠️ Note: If you have multiple projects, the default project will be used."
         case .kimi:
             return "🌐 Browser opened for Kimi authentication.\n\nPlease complete the login in your browser.\n\nThe app will automatically detect your Kimi account."
+        case .xai:
+            return "Grok Build connected. You can now use its models through the proxy."
         case .qwen:
             return "🌐 Browser opened for Qwen authentication.\n\nPlease complete the login in your browser."
         case .antigravity:

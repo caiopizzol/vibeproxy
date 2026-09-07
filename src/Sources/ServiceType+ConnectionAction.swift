@@ -17,6 +17,8 @@ extension ServiceType {
             return .authCommand(.geminiLogin)
         case .kimi:
             return .authCommand(.kimiLogin)
+        case .xai:
+            return .authCommand(.xaiLogin)
         case .qwen:
             return .promptForQwenEmail
         case .antigravity:

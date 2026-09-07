@@ -3,11 +3,13 @@ import Foundation
 enum QuotaProvider: String, CaseIterable, Hashable, Sendable {
     case anthropic = "claude"
     case openAI = "codex"
+    case xai = "xai"
 
     var displayName: String {
         switch self {
         case .anthropic: return "Anthropic"
         case .openAI: return "OpenAI"
+        case .xai: return "Grok"
         }
     }
 
@@ -15,6 +17,7 @@ enum QuotaProvider: String, CaseIterable, Hashable, Sendable {
         switch self {
         case .anthropic: return "icon-claude.png"
         case .openAI: return "icon-codex.png"
+        case .xai: return "icon-grok.png"
         }
     }
 

@@ -63,7 +63,7 @@ struct QuotaOverviewView: View {
             }
 
             if accounts.isEmpty {
-                Text("Add an Anthropic or OpenAI account to see its usage limits.")
+                Text("Add an Anthropic, OpenAI, or Grok account to see its usage limits.")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -267,6 +267,7 @@ private struct QuotaProviderGroupView: View {
                     providerIcon
 
                     Text(provider.displayName)
+                        .help(provider == .xai ? "Remaining shared credits for the current weekly period." : provider.displayName)
                         .font(.system(size: 13, weight: .semibold))
 
                     Text("\(accounts.count)")
@@ -303,7 +304,7 @@ private struct QuotaProviderGroupView: View {
             if isExpanded {
                 Divider()
 
-                QuotaColumnHeader()
+                QuotaColumnHeader(provider: provider)
 
                 let enabledCount = accounts.filter { !$0.isDisabled }.count
                 ForEach(Array(accounts.enumerated()), id: \.element.id) { index, account in
@@ -340,20 +341,24 @@ private struct QuotaProviderGroupView: View {
                 .resizable()
                 .renderingMode(.template)
                 .frame(width: 16, height: 16)
+        } else if provider == .xai {
+            Image(systemName: "sparkles")
+                .frame(width: 16, height: 16)
         }
     }
 }
 
 private struct QuotaColumnHeader: View {
+    let provider: QuotaProvider
     var body: some View {
         HStack(spacing: QuotaGridLayout.spacing) {
             Text("ACCOUNT")
                 .frame(width: QuotaGridLayout.accountWidth, alignment: .leading)
-            Text("5-HOUR")
+            Text(provider == .xai ? "" : "5-HOUR")
                 .frame(width: QuotaGridLayout.cellWidth)
             Text("WEEKLY")
                 .frame(width: QuotaGridLayout.cellWidth)
-            Text("FABLE")
+            Text(provider == .xai ? "" : "FABLE")
                 .frame(width: QuotaGridLayout.cellWidth)
         }
         .font(.system(size: 9, weight: .semibold))

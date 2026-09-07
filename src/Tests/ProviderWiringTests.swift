@@ -8,6 +8,7 @@ final class ProviderWiringTests: XCTestCase {
         XCTAssertEqual(ServiceType.copilot.connectionAction, .authCommand(.copilotLogin))
         XCTAssertEqual(ServiceType.gemini.connectionAction, .authCommand(.geminiLogin))
         XCTAssertEqual(ServiceType.kimi.connectionAction, .authCommand(.kimiLogin))
+        XCTAssertEqual(ServiceType.xai.connectionAction, .authCommand(.xaiLogin))
         XCTAssertEqual(ServiceType.qwen.connectionAction, .promptForQwenEmail)
         XCTAssertEqual(ServiceType.antigravity.connectionAction, .authCommand(.antigravityLogin))
         XCTAssertEqual(ServiceType.zai.connectionAction, .promptForZAIAPIKey)

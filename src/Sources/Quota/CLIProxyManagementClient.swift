@@ -231,6 +231,11 @@ struct CLIProxyManagementClient: Sendable {
                     "anthropic-beta": "oauth-2025-04-20"
                 ]
             )
+        case .xai:
+            return QuotaTemplate(
+                url: "https://cli-chat-proxy.grok.com/v1/billing?format=credits",
+                headers: ["Authorization": "Bearer $TOKEN$"]
+            )
         case .openAI:
             return QuotaTemplate(
                 url: "https://chatgpt.com/backend-api/wham/usage",
@@ -257,6 +262,7 @@ struct CLIProxyManagementClient: Sendable {
             switch provider {
             case .anthropic: return try ClaudeQuotaDecoder.decode(data, fetchedAt: now())
             case .openAI: return try CodexQuotaDecoder.decode(data, fetchedAt: now())
+            case .xai: return try GrokQuotaDecoder.decode(data, fetchedAt: now())
             }
         } catch let failure as QuotaFailure {
             throw failure

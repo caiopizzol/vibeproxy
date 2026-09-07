@@ -178,3 +178,7 @@ MIT License - see LICENSE file for details
 ---
 
 © 2025 [Automaze, Ltd.](https://automaze.io) All rights reserved.
+
+### Grok usage limits
+
+Grok accounts appear in the menu bar usage panel alongside Anthropic and OpenAI. For unified billing accounts with a weekly credit period, the weekly column shows remaining shared credits and the provider's reset time. Unsupported billing formats show quota unavailable; five-hour and Fable limits are not inferred.

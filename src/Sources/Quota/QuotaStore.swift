@@ -6,6 +6,7 @@ extension QuotaProvider {
         switch serviceType {
         case .claude: self = .anthropic
         case .codex: self = .openAI
+        case .xai: self = .xai
         default: return nil
         }
     }
@@ -57,6 +58,7 @@ final class QuotaStore: ObservableObject {
                 guard let self else { return }
                 let accounts = (serviceAccounts[.claude]?.accounts ?? [])
                     + (serviceAccounts[.codex]?.accounts ?? [])
+                    + (serviceAccounts[.xai]?.accounts ?? [])
                 let accountsChanged = accounts != self.monitoredAccounts
                 let serverBecameRunning = serverIsRunning && !self.monitoredServerIsRunning
                 self.monitoredAccounts = accounts

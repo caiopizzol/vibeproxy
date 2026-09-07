@@ -498,7 +498,7 @@ class ServerManager: ObservableObject {
         }
     }
     
-    func runAuthCommand(_ command: AuthCommand, completion: @escaping (Bool, String) -> Void) {
+    func runAuthCommand(_ command: AuthCommand, onPrompt: @escaping (String) -> Void = { _ in }, completion: @escaping (Bool, String) -> Void) {
         terminateActiveAuthProcessIfNeeded(reason: "starting a new auth attempt")
         cleanupStaleAuthProcesses()
 
@@ -536,6 +536,26 @@ class ServerManager: ObservableObject {
             authProcess.arguments = ["--config", configPath, "-login"]
         case .kimiLogin:
             authProcess.arguments = ["--config", configPath, "-kimi-login"]
+        case .xaiLogin:
+            authProcess.arguments = ["--config", configPath, "-xai-login"]
+            activeAuthProcess = authProcess
+            do {
+                try GrokLogin.start(authProcess, onPrompt: { [weak self] prompt in
+                    guard self?.activeAuthProcess === authProcess else { return }
+                    onPrompt(prompt)
+                }) { [weak self] success, output in
+                    guard self?.activeAuthProcess === authProcess else { return }
+                    self?.clearActiveAuthProcess(authProcess)
+                    if success {
+                        NotificationCenter.default.post(name: .authDirectoryChanged, object: nil)
+                    }
+                    completion(success, output)
+                }
+            } catch {
+                clearActiveAuthProcess(authProcess)
+                completion(false, "Failed to start authentication: \(error.localizedDescription)")
+            }
+            return
         case .qwenLogin(let email):
             authProcess.arguments = ["--config", configPath, "-qwen-login"]
             qwenEmail = email
@@ -733,6 +753,7 @@ class ServerManager: ObservableObject {
             "cli-proxy-api-plus.*-claude-login",
             "cli-proxy-api-plus.*-codex-login",
             "cli-proxy-api-plus.*-github-copilot-login",
+            "cli-proxy-api-plus.*-xai-login",
             "cli-proxy-api-plus.*-qwen-login",
             "cli-proxy-api-plus.*-antigravity-login",
             "cli-proxy-api-plus.* -login"
@@ -1385,6 +1406,7 @@ enum AuthCommand: Equatable {
     case copilotLogin
     case geminiLogin
     case kimiLogin
+    case xaiLogin
     case qwenLogin(email: String)
     case antigravityLogin
 }
