@@ -28,8 +28,10 @@ struct ProxyAuthFile: Decodable, Sendable {
     let name: String
     let provider: String
     let chatGPTAccountID: String?
+    let email: String?
 
     private enum CodingKeys: String, CodingKey {
+        case email
         case authIndex = "auth_index"
         case name
         case provider
@@ -42,6 +44,7 @@ struct ProxyAuthFile: Decodable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         authIndex = try container.decode(String.self, forKey: .authIndex)
         name = try container.decode(String.self, forKey: .name)
+        email = try container.decodeIfPresent(String.self, forKey: .email)
         provider = try container.decodeIfPresent(String.self, forKey: .provider)
             ?? container.decode(String.self, forKey: .type)
         let topLevelAccountID = try? container.decode(String.self, forKey: .chatGPTAccountID)
@@ -63,17 +66,20 @@ struct CLIProxyManagementClient: Sendable {
     private let managementSecret: String
     private let transport: QuotaManagementTransport
     private let now: @Sendable () -> Date
+    private let museCache: MuseQuotaCache
 
     init(
         baseURL: URL,
         managementSecret: String,
         transport: QuotaManagementTransport = URLSessionQuotaManagementTransport(),
-        now: @escaping @Sendable () -> Date = { Date() }
+        now: @escaping @Sendable () -> Date = { Date() },
+        museCache: MuseQuotaCache = MuseQuotaCache()
     ) {
         self.baseURL = baseURL
         self.managementSecret = managementSecret
         self.transport = transport
         self.now = now
+        self.museCache = museCache
     }
 
     func fetchAuthFiles() async throws -> [ProxyAuthFile] {
@@ -101,7 +107,15 @@ struct CLIProxyManagementClient: Sendable {
             headers: template.headers,
             data: provider == .muse ? "{}" : nil
         )
-        return try decode(upstreamBody, provider: provider)
+        try Task.checkCancellation()
+        do {
+            let snapshot = try decode(upstreamBody, provider: provider)
+            if provider == .muse { museCache.save(snapshot, server: baseURL, account: authFile) }
+            return snapshot
+        } catch QuotaFailure.usageNotReported where provider == .muse {
+            if let previous = museCache.load(server: baseURL, account: authFile) { return previous }
+            throw QuotaFailure.usageNotReported
+        }
     }
 
     func fetchCodexResetCredits(for authFile: ProxyAuthFile) async throws -> [CodexResetCredit] {

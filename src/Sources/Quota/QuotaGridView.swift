@@ -233,7 +233,7 @@ private struct QuotaProviderGroupView: View {
     }
 
     private var exhaustedCount: Int {
-        accounts.filter { !$0.isDisabled && states[$0.id]?.snapshot?.isExhausted == true }.count
+        accounts.filter { !$0.isDisabled && states[$0.id]?.snapshot?.isExhausted == true && states[$0.id]?.snapshot?.isStale == false }.count
     }
 
     private var collapsedSummary: String? {
@@ -241,6 +241,7 @@ private struct QuotaProviderGroupView: View {
         let now = Date()
         let nextReset = activeAccounts
             .compactMap { states[$0.id]?.snapshot }
+            .filter { !$0.isStale }
             .flatMap(\.windows)
             .compactMap(\.resetsAt)
             .filter { $0 > now }
@@ -248,6 +249,8 @@ private struct QuotaProviderGroupView: View {
         if let nextReset {
             return "resets in \(QuotaTimeFormatter.compact(until: nextReset, now: now))"
         }
+        if activeAccounts.contains(where: { states[$0.id]?.snapshot?.isStale == true }) { return "last known usage" }
+        if activeAccounts.contains(where: { states[$0.id]?.failure == .usageNotReported }) { return "awaiting usage" }
         return activeAccounts.contains { states[$0.id]?.failure != nil } ? "quota unavailable" : nil
     }
 
@@ -382,51 +385,64 @@ private struct QuotaAccountGridRow: View {
     let onToggleAccount: () -> Void
 
     var body: some View {
-        HStack(spacing: QuotaGridLayout.spacing) {
-            HStack(spacing: 5) {
-                Text(displayName)
-                    .font(.system(size: 11, weight: .medium))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .foregroundColor(account.isDisabled ? .secondary : .primary)
-                    .strikethrough(account.isDisabled)
-                    .blur(radius: hideAccountEmail ? 4.5 : 0)
-                    .accessibilityLabel(hideAccountEmail ? "Hidden account email" : displayName)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: QuotaGridLayout.spacing) {
+                HStack(spacing: 5) {
+                    Text(displayName)
+                        .font(.system(size: 11, weight: .medium))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .foregroundColor(account.isDisabled ? .secondary : .primary)
+                        .strikethrough(account.isDisabled)
+                        .blur(radius: hideAccountEmail ? 4.5 : 0)
+                        .accessibilityLabel(hideAccountEmail ? "Hidden account email" : displayName)
 
-                Spacer(minLength: 1)
+                    Spacer(minLength: 1)
 
-                if provider == .openAI,
-                   let availability = state?.snapshot?.resetCredits,
-                   availability.availableCount > 0 {
-                    CodexResetBadge(
-                        availability: availability,
-                        isEnabled: canUseReset,
-                        isLoading: isResetting,
-                        action: onReset
+                    if provider == .openAI,
+                       let availability = state?.snapshot?.resetCredits,
+                       availability.availableCount > 0 {
+                        CodexResetBadge(
+                            availability: availability,
+                            isEnabled: canUseReset,
+                            isLoading: isResetting,
+                            action: onReset
+                        )
+                    }
+
+                    if let failure = state?.failure, failure != .usageNotReported {
+                        Image(systemName: "exclamationmark.circle")
+                            .font(.system(size: 9))
+                            .foregroundColor(.orange)
+                            .help(failure.displayText)
+                    }
+
+                    AccountEnabledToggle(
+                        isEnabled: !account.isDisabled,
+                        canToggle: canToggleAccount,
+                        action: onToggleAccount
                     )
                 }
+                .frame(width: QuotaGridLayout.accountWidth, alignment: .leading)
 
-                if let failure = state?.failure {
-                    Image(systemName: "exclamationmark.circle")
-                        .font(.system(size: 9))
-                        .foregroundColor(.orange)
-                        .help(failure.displayText)
-                }
-
-                AccountEnabledToggle(
-                    isEnabled: !account.isDisabled,
-                    canToggle: canToggleAccount,
-                    action: onToggleAccount
-                )
+                QuotaCell(window: state?.snapshot?.window(.fiveHour), isStale: state?.snapshot?.isStale == true)
+                    .opacity(account.isDisabled ? 0.45 : 1)
+                QuotaCell(window: state?.snapshot?.window(.weekly), isStale: state?.snapshot?.isStale == true)
+                    .opacity(account.isDisabled ? 0.45 : 1)
+                QuotaCell(window: provider == .anthropic ? state?.snapshot?.window(.fable) : nil)
+                    .opacity(account.isDisabled ? 0.45 : 1)
             }
-            .frame(width: QuotaGridLayout.accountWidth, alignment: .leading)
-
-            QuotaCell(window: state?.snapshot?.window(.fiveHour))
-                .opacity(account.isDisabled ? 0.45 : 1)
-            QuotaCell(window: state?.snapshot?.window(.weekly))
-                .opacity(account.isDisabled ? 0.45 : 1)
-            QuotaCell(window: provider == .anthropic ? state?.snapshot?.window(.fable) : nil)
-                .opacity(account.isDisabled ? 0.45 : 1)
+            if let snapshot = state?.snapshot, snapshot.isStale {
+                Text("Last known · \(snapshot.fetchedAt.formatted(date: .abbreviated, time: .shortened))")
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
+                    .help("Meta omitted current usage. These are the last reported values, not current remaining limits.")
+            } else if state?.failure == .usageNotReported {
+                Text("Meta hasn’t reported usage yet")
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
+                    .help(QuotaFailure.usageNotReported.displayText)
+            }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
@@ -520,15 +536,16 @@ private struct CodexResetBadge: View {
 
 private struct QuotaCell: View {
     let window: QuotaWindow?
+    var isStale = false
 
     var body: some View {
         VStack(spacing: 1) {
             if let window {
                 Text("\(Int(window.remainingPercent.rounded()))%")
                     .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundColor(QuotaColor.color(for: window.remainingPercent))
+                    .foregroundColor(isStale ? .secondary : QuotaColor.color(for: window.remainingPercent))
 
-                Text(resetText(window.resetsAt))
+                Text(isStale ? "last known" : resetText(window.resetsAt))
                     .font(.system(size: 9))
                     .foregroundColor(.secondary)
                     .lineLimit(1)

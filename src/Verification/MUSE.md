@@ -19,4 +19,12 @@ Verified contracts on September 7, 2026:
 
 `MuseQuotaSpec.swift` verifies schema rejection and the management request. Pass `--live` after connecting the account to check usage through the configured NUC tunnel. Reconnecting an expired Meta grant requires `muse login` followed by the app's Connect action; automatic renewal of that grant is not claimed.
 
-Deployment state: app 1.9.0-muse is installed and opened at `/Applications/VibeProxy.app`. The NUC runtime was rebuilt from the source described above with CGO enabled and the Muse plugin installed. All 41 preexisting models survived the restart; Claude and Grok quota calls returned HTTP 200. Connecting the real Muse account to the NUC is pending the user's explicit approval to sync its grant, as required by `~/.agents/remote-nucbox.md`. No Muse credential was added to the synced directory during verification.
+## Missing usage snapshots
+
+Meta sometimes returns HTTP 200 with an active subscription but omits `subs_usage`. This has recurred after an idle period; a subsequent inference restored the snapshot in observed tests. Lazy window initialization is a hypothesis, not a guaranteed API contract.
+
+VibeProxy now persists only decoded Muse percentages, reset times, and the original observation time. If a later successful response omits or nulls `subs_usage`, the app shows the saved values as **Last known** with their timestamp. It does not infer that a reset restored 100%, and it does not send model requests to obtain quota. Without a prior snapshot it explicitly says Meta has not reported usage yet. Authentication failures and malformed supplied usage remain errors.
+
+Cache identity includes the server origin, auth index, filename, and account email (hashed for the cache filename). The stored payload contains no credentials, raw mint responses, or email. Atomic, serialized writes retain the newer snapshot; corrupt caches are ignored. Account/server changes cannot reuse another account's snapshot.
+
+`MuseQuotaSpec.swift` covers persistence across client recreation, absent/null versus malformed usage, account/server isolation, original timestamps, fresh recovery, auth failures, corrupt files, and older writes. Grok quota regression checks remain passing. The live configured server also passed a quota fetch and persistent-cache round trip on September 11, 2026.

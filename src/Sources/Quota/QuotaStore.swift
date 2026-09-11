@@ -47,6 +47,7 @@ final class QuotaStore: ObservableObject {
         isRefreshing = false
         lastUpdated = nil
         self.client = client
+        states = [:]
     }
 
     @MainActor
@@ -142,14 +143,15 @@ final class QuotaStore: ObservableObject {
             let accountIDs = Set(accounts.map(\.id))
             var nextStates = self.states.filter { accountIDs.contains($0.key) }
             for result in results {
-                let previousSnapshot = nextStates[result.id]?.snapshot
+                let isMuse = accounts.first(where: { $0.id == result.id })?.type == .muse
+                let previousSnapshot = isMuse ? nil : nextStates[result.id]?.snapshot
                 nextStates[result.id] = AccountQuotaState(
                     snapshot: result.snapshot ?? previousSnapshot,
                     failure: result.failure
                 )
             }
             self.states = nextStates
-            self.lastUpdated = results.compactMap(\.snapshot?.fetchedAt).max() ?? self.lastUpdated
+            self.lastUpdated = results.compactMap { $0.snapshot?.isStale == false ? $0.snapshot?.fetchedAt : nil }.max() ?? self.lastUpdated
             self.isRefreshing = false
             self.refreshTask = nil
         }

@@ -49,17 +49,20 @@ struct QuotaSnapshot: Equatable, Sendable {
     let windows: [QuotaWindow]
     let fetchedAt: Date
     let resetCredits: CodexResetAvailability?
+    let isStale: Bool
 
     init(
         provider: QuotaProvider,
         windows: [QuotaWindow],
         fetchedAt: Date,
-        resetCredits: CodexResetAvailability? = nil
+        resetCredits: CodexResetAvailability? = nil,
+        isStale: Bool = false
     ) {
         self.provider = provider
         self.windows = windows
         self.fetchedAt = fetchedAt
         self.resetCredits = resetCredits
+        self.isStale = isStale
     }
 
     func window(_ kind: QuotaWindowKind) -> QuotaWindow? {
@@ -101,6 +104,7 @@ enum QuotaFailure: String, Error, Equatable, Sendable {
     case rateLimited
     case providerUnavailable
     case invalidResponse
+    case usageNotReported
 
     var displayText: String {
         switch self {
@@ -111,6 +115,7 @@ enum QuotaFailure: String, Error, Equatable, Sendable {
         case .rateLimited: return "Rate limited"
         case .providerUnavailable: return "Provider unavailable"
         case .invalidResponse: return "Quota unavailable"
+        case .usageNotReported: return "Meta has not reported usage yet. Usage may appear after your next Muse request."
         }
     }
 }

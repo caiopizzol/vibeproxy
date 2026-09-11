@@ -3,8 +3,13 @@ import Foundation
 enum MuseQuotaDecoder {
     static func decode(_ data: Data, fetchedAt: Date) throws -> QuotaSnapshot {
         guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              root["is_subs_active"] as? Bool == true,
-              let usage = root["subs_usage"] as? [String: Any] else {
+              root["is_subs_active"] as? Bool == true else {
+            throw QuotaFailure.invalidResponse
+        }
+        guard let value = root["subs_usage"], !(value is NSNull) else {
+            throw QuotaFailure.usageNotReported
+        }
+        guard let usage = value as? [String: Any] else {
             throw QuotaFailure.invalidResponse
         }
         let windows = try [("window", QuotaWindowKind.fiveHour), ("weekly", .weekly)].map { key, kind in
