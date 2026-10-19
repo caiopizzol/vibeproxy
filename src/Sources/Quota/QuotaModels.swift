@@ -30,6 +30,7 @@ enum QuotaWindowKind: String, Sendable {
     case fiveHour
     case weekly
     case fable
+    case spend
 }
 
 struct QuotaWindow: Equatable, Sendable {
