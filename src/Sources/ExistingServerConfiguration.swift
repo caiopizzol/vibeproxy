@@ -11,7 +11,7 @@ enum ExistingServerConfiguration {
         guard var components = URLComponents(string: trimmed),
               let scheme = components.scheme?.lowercased(),
               scheme == "http" || scheme == "https",
-              components.host != nil else {
+              components.host?.isEmpty == false else {
             return nil
         }
         components.scheme = scheme
