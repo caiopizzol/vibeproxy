@@ -51,11 +51,12 @@ final class QuotaStore: ObservableObject {
     }
 
     @MainActor
-    func setKeepWarm(_ enabled: Bool, for account: AuthAccount) {
+    func setKeepWarm(_ enabled: Bool, for accounts: [AuthAccount]) {
+        let ids = accounts.map(\.id)
         if enabled {
-            keepWarmAccountIDs.insert(account.id)
+            keepWarmAccountIDs.formUnion(ids)
         } else {
-            keepWarmAccountIDs.remove(account.id)
+            keepWarmAccountIDs.subtract(ids)
         }
         defaults.set(keepWarmAccountIDs.sorted(), forKey: Self.keepWarmKey)
         if enabled, monitoredServerIsRunning {

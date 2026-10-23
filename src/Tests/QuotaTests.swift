@@ -338,7 +338,7 @@ final class QuotaTests: XCTestCase {
         let store = QuotaStore(client: testClient(transport: transport), defaults: defaults)
         let warm = claudeAccount(id: "claude-warm.json")
         let cold = claudeAccount(id: "claude-cold.json")
-        store.setKeepWarm(true, for: warm)
+        store.setKeepWarm(true, for: [warm])
 
         store.refresh(accounts: [warm, cold])
         for _ in 0 ..< 200 {
@@ -353,6 +353,22 @@ final class QuotaTests: XCTestCase {
         XCTAssertEqual(warmUps.first?["method"] as? String, "POST")
         XCTAssertNotNil(store.states[warm.id]?.snapshot?.window(.fiveHour)?.resetsAt, "refresh after warm-up shows the open window")
         XCTAssertEqual(defaults.stringArray(forKey: "keepWarmClaudeAccounts"), ["claude-warm.json"])
+    }
+
+    @MainActor
+    func testKeepWarmAppliesToEveryGivenAccount() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "keep-warm-\(UUID().uuidString)"))
+        let store = QuotaStore(client: testClient(transport: QuotaTestTransport(responses: [])), defaults: defaults)
+        let first = claudeAccount(id: "claude-a.json")
+        let second = claudeAccount(id: "claude-b.json")
+
+        store.setKeepWarm(true, for: [first])
+        store.setKeepWarm(true, for: [first, second])
+        XCTAssertEqual(store.keepWarmAccountIDs, [first.id, second.id])
+
+        store.setKeepWarm(false, for: [first, second])
+        XCTAssertTrue(store.keepWarmAccountIDs.isEmpty)
+        XCTAssertEqual(defaults.stringArray(forKey: "keepWarmClaudeAccounts"), [])
     }
 
     private func claudeAccount(id: String, disabled: Bool = false) -> AuthAccount {

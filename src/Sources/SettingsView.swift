@@ -73,7 +73,7 @@ struct AccountRowView: View {
     }
 }
 
-/// Shared width so the "Keep warm" header sits centered over every account's switch.
+/// Shared width so the all-accounts switch lines up with every account's switch.
 enum KeepWarmColumn {
     static let width: CGFloat = 60
 }
@@ -126,7 +126,8 @@ struct ServiceRow<ExtraContent: View>: View {
     let onToggleDisabled: (AuthAccount) -> Void
     let onToggleEnabled: (Bool) -> Void
     var onExpandChange: ((Bool) -> Void)? = nil
-    var keepWarm: ((AuthAccount) -> Binding<Bool>)? = nil
+    /// On when every given account is kept warm; setting it applies to all of them.
+    var keepWarm: (([AuthAccount]) -> Binding<Bool>)? = nil
     @ViewBuilder var extraContent: () -> ExtraContent
 
     @State private var isExpanded = false
@@ -213,13 +214,18 @@ struct ServiceRow<ExtraContent: View>: View {
                     // Expanded accounts list
                     if isExpanded {
                         VStack(alignment: .leading, spacing: 6) {
-                            if keepWarm != nil {
-                                HStack {
+                            if let keepWarm {
+                                HStack(spacing: 6) {
                                     Spacer()
                                     Text("Keep warm")
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
+                                    Toggle("Keep all accounts warm", isOn: keepWarm(accounts))
+                                        .toggleStyle(.switch)
+                                        .controlSize(.mini)
+                                        .labelsHidden()
                                         .frame(width: KeepWarmColumn.width)
+                                        .help("Keep all accounts warm")
                                 }
                             }
                             ForEach(accounts) { account in
@@ -228,7 +234,7 @@ struct ServiceRow<ExtraContent: View>: View {
                                 }, onRemove: {
                                     accountToRemove = account
                                     showingRemoveConfirmation = true
-                                }, keepWarm: keepWarm?(account))
+                                }, keepWarm: keepWarm?([account]))
                             }
                             extraContent()
                         }
@@ -653,10 +659,10 @@ struct SettingsView: View {
                         onToggleDisabled: { account in toggleAccountDisabled(account) },
                         onToggleEnabled: { enabled in serverManager.setProviderEnabled("claude", enabled: enabled) },
                         onExpandChange: { expanded in expandedRowCount += expanded ? 1 : -1 },
-                        keepWarm: { account in
+                        keepWarm: { accounts in
                             Binding(
-                                get: { quotaStore.keepWarmAccountIDs.contains(account.id) },
-                                set: { quotaStore.setKeepWarm($0, for: account) }
+                                get: { accounts.allSatisfy { quotaStore.keepWarmAccountIDs.contains($0.id) } },
+                                set: { quotaStore.setKeepWarm($0, for: accounts) }
                             )
                         }
                     ) {
