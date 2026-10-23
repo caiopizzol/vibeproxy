@@ -30,14 +30,6 @@ struct AccountRowView: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
-            if let keepWarm {
-                Toggle("Keep warm", isOn: keepWarm)
-                    .toggleStyle(.switch)
-                    .controlSize(.mini)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .help("Start a new 5-hour window as soon as the previous one ends")
-            }
             if showDisableToggle {
                 let canDisable = account.isDisabled || !isLastEnabled
                 Button(action: onToggleDisabled) {
@@ -67,9 +59,23 @@ struct AccountRowView: View {
             .onHover { inside in
                 if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
             }
+            if let keepWarm {
+                Spacer(minLength: 8)
+                Toggle("Keep warm", isOn: keepWarm)
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
+                    .labelsHidden()
+                    .frame(width: KeepWarmColumn.width)
+                    .help("Start a new 5-hour window as soon as the previous one ends")
+            }
         }
         .padding(.leading, 28)
     }
+}
+
+/// Shared width so the "Keep warm" header sits centered over every account's switch.
+enum KeepWarmColumn {
+    static let width: CGFloat = 60
 }
 
 /// Vercel AI Gateway controls shown in Claude expanded section
@@ -207,6 +213,15 @@ struct ServiceRow<ExtraContent: View>: View {
                     // Expanded accounts list
                     if isExpanded {
                         VStack(alignment: .leading, spacing: 6) {
+                            if keepWarm != nil {
+                                HStack {
+                                    Spacer()
+                                    Text("Keep warm")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                        .frame(width: KeepWarmColumn.width)
+                                }
+                            }
                             ForEach(accounts) { account in
                                 AccountRowView(account: account, removeColor: removeColor, showDisableToggle: accounts.count > 1 || account.isDisabled, isLastEnabled: !account.isDisabled && enabledCount <= 1, onToggleDisabled: {
                                     onToggleDisabled(account)
