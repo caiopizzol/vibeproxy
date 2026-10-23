@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { --mac-bg:#ececec; --mac-card:#f6f6f6; --mac-text:#1d1d1f; --mac-sec:#86868b; --mac-line:rgba(0,0,0,.08);
+          --green:#28a745; --orange:#f08c00; --red:#e0362b; --blue:#0a7cff; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif; }
+  .wrap { display:grid; gap:24px; max-width:560px; }
+  .label { font:600 11px/1.2 var(--font-sans, -apple-system); letter-spacing:.04em; text-transform:uppercase;
+           color:var(--muted-foreground,#888); margin:0 0 4px 2px; }
+  .note { font-size:12px; color:var(--muted-foreground,#888); margin:0 0 10px 2px; line-height:1.4; }
+  .window { background:var(--mac-bg); border-radius:var(--radius,10px); padding:16px; color:var(--mac-text); }
+  .card { background:var(--mac-card); border:1px solid var(--mac-line); border-radius:8px; padding:12px 12px 10px; }
+  .svc { display:flex; align-items:center; gap:8px; }
+  .switch { width:30px; height:17px; border-radius:9px; background:var(--blue); position:relative; flex:none; }
+  .switch::after { content:""; position:absolute; right:2px; top:2px; width:13px; height:13px; border-radius:50%; background:#fff; }
+  .switch.off { background:#d9d9d9; } .switch.off::after { right:auto; left:2px; }
+  .switch.mini { width:22px; height:13px; } .switch.mini::after { width:9px; height:9px; }
+  .svc b { font-size:13.5px; font-weight:600; }
+  .btn { margin-left:auto; font-size:11.5px; background:#fff; border:1px solid #cfcfcf; border-radius:5px; padding:2px 8px; }
+  .sub { font-size:11px; color:var(--green); margin:4px 0 8px 38px; }
+  .sub span { color:var(--mac-sec); }
+  .row { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--mac-sec); padding:3px 0 3px 28px; white-space:nowrap; }
+  .dot { width:6px; height:6px; border-radius:50%; background:var(--green); flex:none; }
+  .email { width:160px; flex:none; }
+  .disable { color:var(--orange); } .remove { color:var(--red); }
+  .remove::before { content:"\2212"; display:inline-grid; place-items:center; width:10px; height:10px; border-radius:50%;
+                    background:var(--red); color:#fff; font-size:9px; font-weight:700; margin-right:3px; line-height:1; }
+  .warm { display:inline-flex; align-items:center; gap:4px; border-radius:9px; padding:1px 7px; font-size:10.5px; }
+  .warm.on { background:rgba(240,140,0,.12); color:#b86a00; }
+  .warm.off { background:rgba(0,0,0,.05); color:var(--mac-sec); }
+  .warm.wait { background:rgba(10,124,255,.1); color:var(--blue); }
+  .warm.pause { background:rgba(0,0,0,.05); color:var(--mac-sec); text-decoration:line-through; text-decoration-color:rgba(0,0,0,.25); }
+  .flame { font-size:10px; }
+  .colhead { font-size:9px; font-weight:600; letter-spacing:.05em; color:var(--mac-sec); padding:0 0 2px 214px; }
+  .vercel { font-size:11px; padding:6px 0 0 28px; display:flex; gap:6px; align-items:center; }
+  .box { width:11px; height:11px; border:1px solid #bbb; border-radius:3px; background:#fff; }
+  .legend { margin-top:14px; display:grid; grid-template-columns:auto 1fr; gap:8px 12px; align-items:center; font-size:11.5px; }
+  .legend .warm { justify-self:start; }
+  .legend p { margin:0; color:#555; line-height:1.35; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div>
+    <p class="label">Keep warm toggle per account</p>
+    <p class="note">On: VibeProxy starts a new 5-hour window as soon as the previous one ends. Reset times stay in the usage panel.</p>
+    <div class="window"><div class="card">
+      <div class="svc"><div class="switch"></div><b>&#10035;&nbsp;Claude Code</b><span class="btn">Add Account</span></div>
+      <div class="sub">4 connected accounts <span>• Round-robin w/ auto-failover &#8964;</span></div>
+      <div class="colhead">KEEP WARM</div>
+      <div class="row"><span class="dot"></span><span class="email">client@example.com</span>
+        <span class="switch mini"></span><span class="disable">Disable</span><span class="remove">Remove</span></div>
+      <div class="row"><span class="dot"></span><span class="email">team@example.com</span>
+        <span class="switch mini off"></span><span class="disable">Disable</span><span class="remove">Remove</span></div>
+      <div class="row"><span class="dot"></span><span class="email">work@example.com</span>
+        <span class="switch mini"></span><span class="disable">Disable</span><span class="remove">Remove</span></div>
+      <div class="row"><span class="dot"></span><span class="email">personal@gmail.com</span>
+        <span class="switch mini"></span><span class="disable">Disable</span><span class="remove">Remove</span></div>
+      <div class="vercel"><span class="box"></span>Use Vercel AI Gateway</div>
+    </div></div>
+  </div>
+
+</div>
+
+
+</body>
+</html>

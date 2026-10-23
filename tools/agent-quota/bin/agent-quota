@@ -1,0 +1,3 @@
+#!/bin/sh
+quota_bun=$(command -v bun) || quota_bun="$HOME/.bun/bin/bun"
+exec "$quota_bun" --no-env-file "$HOME/.local/share/agent-quota/cli.ts" "$@"

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>VibeProxy — grouped usage menu mockups</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  /* theme-toggle override (viewer toggle stamps data-theme on <html>) */
+  :root[data-theme="dark"] {
+    --bg: rgba(40, 40, 43, 0.82); --text: #f5f5f7; --text-secondary: #98989d;
+    --text-tertiary: #6e6e73; --border: rgba(255,255,255,0.09); --divider: rgba(255,255,255,0.08);
+    --track: rgba(255,255,255,0.1); --hover: rgba(255,255,255,0.06);
+    --ok: #3dd062; --warn: #f0a020; --critical: #ff453a; --accent: #4098ff;
+    --chip-bg: rgba(255,255,255,0.08);
+  }
+  :root[data-theme="light"] {
+    --bg: rgba(255,255,255,0.82); --text: #1d1d1f; --text-secondary: #86868b;
+    --text-tertiary: #aeaeb2; --border: rgba(0,0,0,0.08); --divider: rgba(0,0,0,0.06);
+    --track: rgba(0,0,0,0.07); --hover: rgba(0,0,0,0.04);
+    --ok: #30b155; --warn: #d98a0e; --critical: #e0362b; --accent: #0a7cff;
+    --chip-bg: rgba(0,0,0,0.05);
+  }
+  :root[data-theme="dark"] body {
+    background:
+      radial-gradient(circle at 20% 10%, #3d3070aa, transparent 40%),
+      radial-gradient(circle at 80% 30%, #8a2f4022, transparent 40%),
+      linear-gradient(160deg, #1c1c1e, #17171a 60%, #101012);
+  }
+  :root[data-theme="light"] body {
+    background:
+      radial-gradient(circle at 20% 10%, #6a5acd22, transparent 40%),
+      radial-gradient(circle at 80% 30%, #ff6b8122, transparent 40%),
+      linear-gradient(160deg, #eef1f6, #dfe4ee 60%, #d6dbe6);
+  }
+  :root[data-theme="dark"] .frame-label { color: #9ca3af; }
+  :root[data-theme="light"] .frame-label { color: #6b7280; }
+
+  .caption {
+    font-size: 11px; color: var(--text-secondary); max-width: 360px;
+    margin-top: 8px; line-height: 1.5;
+  }
+
+  .popover { width: 360px; }
+
+  /* --- provider group (collapsible) --- */
+  details.pgroup { border-radius: var(--radius-md); }
+  details.pgroup + details.pgroup { margin-top: 2px; }
+
+  summary.pgroup-head {
+    display: flex; align-items: center; gap: 7px;
+    padding: 7px 8px; border-radius: var(--radius-md);
+    cursor: default; list-style: none; user-select: none;
+  }
+  summary.pgroup-head::-webkit-details-marker { display: none; }
+  summary.pgroup-head:hover { background: var(--hover); }
+
+  .chev {
+    width: 8px; flex-shrink: 0; font-size: 9px; color: var(--text-tertiary);
+    transition: transform 0.15s ease; transform: rotate(0deg); display: inline-block;
+  }
+  details[open] > summary .chev { transform: rotate(90deg); }
+
+  .provider-chip {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 15px; height: 15px; border-radius: 4px;
+    font-size: 8px; font-weight: 700; color: white; flex-shrink: 0;
+  }
+  .provider-chip.anthropic { background: #d97757; }
+  .provider-chip.openai { background: #10a37f; }
+
+  .pgroup-name { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+  .pgroup-count { font-size: 11px; color: var(--text-tertiary); }
+  .pgroup-spacer { flex: 1; }
+
+  /* worst-of summary shown only when the group is collapsed */
+  .pgroup-collapsed-summary {
+    font-size: 11px; color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  details[open] > summary .pgroup-collapsed-summary { display: none; }
+
+  .pgroup-body { padding: 0 8px 8px 8px; }
+
+  /* --- fixed four-column schema: account | 5-hour | weekly | fable --- */
+  .ugrid-head, .ugrid-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 62px 62px 62px;
+    gap: 6px; align-items: center;
+  }
+  .ugrid-head {
+    padding: 3px 6px;
+    font-size: 9.5px; font-weight: 600; letter-spacing: 0.02em;
+    text-transform: uppercase; color: var(--text-tertiary);
+  }
+  .ugrid-head .num, .ucell { text-align: right; }
+  .ugrid-row {
+    padding: 6px 6px;
+    border-bottom: 0.5px solid var(--divider);
+    font-size: 11px;
+  }
+  .ugrid-row:last-child { border-bottom: none; }
+  .ugrid-row .who {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    min-width: 0; color: var(--text);
+  }
+  .ugrid-row .who .plan { display: block; font-size: 9px; color: var(--text-tertiary); }
+  .ucell { font-variant-numeric: tabular-nums; }
+  .ucell .sub { display: block; font-size: 9px; color: var(--text-tertiary); font-weight: 400; }
+  .ucell .glyph { font-size: 8px; margin-right: 2px; }
+  .ucell.na { color: var(--text-tertiary); }
+
+  /* v2: bar-under-number cells */
+  .ucell .cellbar {
+    display: block; height: 3px; border-radius: 2px;
+    background: var(--track); overflow: hidden; margin-top: 3px;
+  }
+  .ucell .cellbar > span { display: block; height: 100%; border-radius: 2px; }
+  .ucell .cellbar.exhausted {
+    border: 1px solid var(--critical); height: 4px;
+    background: color-mix(in srgb, var(--critical) 10%, var(--track));
+  }
+
+  /* v3: account cards */
+  .acct-card {
+    border: 0.5px solid var(--divider); border-radius: var(--radius-md);
+    padding: 7px 9px 8px; margin-top: 6px;
+  }
+  .acct-card-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .acct-email { font-size: 11.5px; font-weight: 500; }
+  .acct-plan { font-size: 10px; color: var(--text-tertiary); }
+  .acct-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .astat .alabel {
+    font-size: 9px; font-weight: 600; letter-spacing: 0.02em;
+    text-transform: uppercase; color: var(--text-tertiary); display: block;
+  }
+  .astat .aval {
+    font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .astat .asub { font-size: 9.5px; color: var(--text-tertiary); display: block; }
+  .astat .abar {
+    display: block; height: 3px; border-radius: 2px; background: var(--track);
+    overflow: hidden; margin-top: 4px;
+  }
+  .astat .abar > span { display: block; height: 100%; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div>
+  <p class="frame-label">v1 · numbers-only grid — one row per account, fixed columns across providers</p>
+  <div class="popover">
+
+    <details class="pgroup" open>
+      <summary class="pgroup-head">
+        <span class="chev">▶</span>
+        <span class="provider-chip anthropic">A</span>
+        <span class="pgroup-name">Anthropic</span>
+        <span class="pgroup-count">3 accounts</span>
+        <span class="pgroup-spacer"></span>
+        <span class="urgency-badge critical">1 exhausted</span>
+      </summary>
+      <div class="pgroup-body">
+        <div class="ugrid-head">
+          <span>Account</span>
+          <span class="num">5-hour</span>
+          <span class="num">Weekly</span>
+          <span class="num">Fable</span>
+        </div>
+        <div class="ugrid-row">
+          <span class="who">work@example.com<span class="plan">Max 20×</span></span>
+          <span class="ucell"><span class="glyph" style="color: var(--warn);">▲</span>28%<span class="sub">2h 10m</span></span>
+          <span class="ucell">64%<span class="sub">4d</span></span>
+          <span class="ucell">81%<span class="sub">4d</span></span>
+        </div>
+        <div class="ugrid-row">
+          <span class="who">personal@gmail.com<span class="plan">Max 5×</span></span>
+          <span class="ucell">92%<span class="sub">4h 40m</span></span>
+          <span class="ucell" style="color: var(--critical); font-weight: 600;">0%<span class="sub" style="color: var(--critical);">1d 4h</span></span>
+          <span class="ucell" style="color: var(--critical); font-weight: 600;">0%<span class="sub" style="color: var(--critical);">1d 4h</span></span>
+        </div>
+        <div class="ugrid-row">
+          <span class="who">side@project.dev<span class="plan">Pro</span></span>
+          <span class="ucell">98%<span class="sub">1h 20m</span></span>
+          <span class="ucell">96%<span class="sub">6d</span></span>
+          <span class="ucell">100%<span class="sub">6d</span></span>
+        </div>
+      </div>
+    </details>
+
+    <details class="pgroup" open>
+      <summary class="pgroup-head">
+        <span class="chev">▶</span>
+        <span class="provider-chip openai">O</span>
+        <span class="pgroup-name">OpenAI</span>
+        <span class="pgroup-count">1 account</span>
+      </summary>
+      <div class="pgroup-body">
+        <div class="ugrid-head">
+          <span>Account</span>
+          <span class="num">5-hour</span>
+          <span class="num">Weekly</span>
+          <span class="num">Fable</span>
+        </div>
+        <div class="ugrid-row">
+          <span class="who">work@openai.example<span class="plan">Pro</span></span>
+          <span class="ucell">88%<span class="sub">4h 40m</span></span>
+          <span class="ucell">71%<span class="sub">3d</span></span>
+          <span class="ucell na">—</span>
+        </div>
+      </div>
+    </details>
+
+    <div class="divider"></div>
+    <div class="footer">
+      <button>Refresh</button>
+      <button>Settings…</button>
+      <button class="quit">Quit</button>
+    </div>
+  </div>
+  <p class="caption">
+    All numbers are "% left", colored by risk; the reset time lives on a second line
+    inside each cell. The column schema is identical for every provider — OpenAI just
+    shows an em dash under Fable. Densest of the three: three accounts scan as three
+    rows. Collapsing is per provider via the chevron.
+  </p>
+</div>
+
+<div>
+  <p class="frame-label">v2 · same grid + thin bars under each number — one group collapsed</p>
+  <div class="popover">
+
+    <details class="pgroup" open>
+      <summary class="pgroup-head">
+        <span class="chev">▶</span>
+        <span class="provider-chip anthropic">A</span>
+        <span class="pgroup-name">Anthropic</span>
+        <span class="pgroup-count">3 accounts</span>
+        <span class="pgroup-spacer"></span>
+        <span class="urgency-badge critical">1 exhausted</span>
+      </summary>
+      <div class="pgroup-body">
+        <div class="ugrid-head">
+          <span>Account</span>
+          <span class="num">5-hour</span>
+          <span class="num">Weekly</span>
+          <span class="num">Fable</span>
+        </div>
+        <div class="ugrid-row">
+          <span class="who">work@example.com<span class="plan">Max 20×</span></span>
+          <span class="ucell" style="color: var(--warn); font-weight: 500;">28%<span class="sub">2h 10m</span><span class="cellbar"><span style="width: 28%; background: var(--warn);"></span></span></span>
+          <span class="ucell">64%<span class="sub">4d</span><span class="cellbar"><span style="width: 64%; background: var(--ok);"></span></span></span>
+          <span class="ucell">81%<span class="sub">4d</span><span class="cellbar"><span style="width: 81%; background: var(--ok);"></span></span></span>
+        </div>
+        <div class="ugrid-row">
+          <span class="who">personal@gmail.com<span class="plan">Max 5×</span></span>
+          <span class="ucell">92%<span class="sub">4h 40m</span><span class="cellbar"><span style="width: 92%; background: var(--ok);"></span></span></span>
+          <span class="ucell" style="color: var(--critical); font-weight: 600;">0%<span class="sub" style="color: var(--critical);">1d 4h</span><span class="cellbar exhausted"><span style="width: 0%;"></span></span></span>
+          <span class="ucell" style="color: var(--critical); font-weight: 600;">0%<span class="sub" style="color: var(--critical);">1d 4h</span><span class="cellbar exhausted"><span style="width: 0%;"></span></span></span>
+        </div>
+        <div class="ugrid-row">
+          <span class="who">side@project.dev<span class="plan">Pro</span></span>
+          <span class="ucell">98%<span class="sub">1h 20m</span><span class="cellbar"><span style="width: 98%; background: var(--ok);"></span></span></span>
+          <span class="ucell">96%<span class="sub">6d</span><span class="cellbar"><span style="width: 96%; background: var(--ok);"></span></span></span>
+          <span class="ucell">100%<span class="sub">6d</span><span class="cellbar"><span style="width: 100%; background: var(--ok);"></span></span></span>
+        </div>
+      </div>
+    </details>
+
+    <details class="pgroup">
+      <summary class="pgroup-head">
+        <span class="chev">▶</span>
+        <span class="provider-chip openai">O</span>
+        <span class="pgroup-name">OpenAI</span>
+        <span class="pgroup-count">1 account</span>
+        <span class="pgroup-spacer"></span>
+        <span class="pgroup-collapsed-summary">worst 71% · 3d</span>
+      </summary>
+      <div class="pgroup-body">
+        <div class="ugrid-head">
+          <span>Account</span>
+          <span class="num">5-hour</span>
+          <span class="num">Weekly</span>
+          <span class="num">Fable</span>
+        </div>
+        <div class="ugrid-row">
+          <span class="who">work@openai.example<span class="plan">Pro</span></span>
+          <span class="ucell">88%<span class="sub">4h 40m</span><span class="cellbar"><span style="width: 88%; background: var(--ok);"></span></span></span>
+          <span class="ucell">71%<span class="sub">3d</span><span class="cellbar"><span style="width: 71%; background: var(--ok);"></span></span></span>
+          <span class="ucell na">—</span>
+        </div>
+      </div>
+    </details>
+
+    <div class="divider"></div>
+    <div class="footer">
+      <button>Refresh</button>
+      <button>Settings…</button>
+      <button class="quit">Quit</button>
+    </div>
+  </div>
+  <p class="caption">
+    Same schema, but each cell carries a 3px bar (fill = remaining, exhausted = outlined
+    empty track) so risk reads without parsing digits. Collapsed groups keep a one-line
+    "worst" summary in the header — you never lose sight of a provider entirely. This is
+    the one I'd start with.
+  </p>
+</div>
+
+<div>
+  <p class="frame-label">v3 · account cards — email as card header, three equal stat columns</p>
+  <div class="popover">
+
+    <details class="pgroup" open>
+      <summary class="pgroup-head">
+        <span class="chev">▶</span>
+        <span class="provider-chip anthropic">A</span>
+        <span class="pgroup-name">Anthropic</span>
+        <span class="pgroup-count">2 accounts</span>
+        <span class="pgroup-spacer"></span>
+        <span class="urgency-badge critical">1 exhausted</span>
+      </summary>
+      <div class="pgroup-body">
+        <div class="acct-card">
+          <div class="acct-card-head">
+            <span class="acct-email">work@example.com</span>
+            <span class="acct-plan">Max 20×</span>
+          </div>
+          <div class="acct-stats">
+            <div class="astat">
+              <span class="alabel">5-hour</span>
+              <span class="aval" style="color: var(--warn);">28%</span>
+              <span class="asub">resets 2h 10m</span>
+              <span class="abar"><span style="width: 28%; background: var(--warn);"></span></span>
+            </div>
+            <div class="astat">
+              <span class="alabel">Weekly</span>
+              <span class="aval">64%</span>
+              <span class="asub">resets 4d</span>
+              <span class="abar"><span style="width: 64%; background: var(--ok);"></span></span>
+            </div>
+            <div class="astat">
+              <span class="alabel">Fable</span>
+              <span class="aval">81%</span>
+              <span class="asub">resets 4d</span>
+              <span class="abar"><span style="width: 81%; background: var(--ok);"></span></span>
+            </div>
+          </div>
+        </div>
+        <div class="acct-card">
+          <div class="acct-card-head">
+            <span class="acct-email">personal@gmail.com</span>
+            <span class="acct-plan">Max 5×</span>
+          </div>
+          <div class="acct-stats">
+            <div class="astat">
+              <span class="alabel">5-hour</span>
+              <span class="aval">92%</span>
+              <span class="asub">resets 4h 40m</span>
+              <span class="abar"><span style="width: 92%; background: var(--ok);"></span></span>
+            </div>
+            <div class="astat">
+              <span class="alabel">Weekly</span>
+              <span class="aval" style="color: var(--critical);">0%</span>
+              <span class="asub" style="color: var(--critical);">resets 1d 4h</span>
+              <span class="abar" style="border: 1px solid var(--critical);"><span style="width: 0%;"></span></span>
+            </div>
+            <div class="astat">
+              <span class="alabel">Fable</span>
+              <span class="aval" style="color: var(--critical);">0%</span>
+              <span class="asub" style="color: var(--critical);">resets 1d 4h</span>
+              <span class="abar" style="border: 1px solid var(--critical);"><span style="width: 0%;"></span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <details class="pgroup" open>
+      <summary class="pgroup-head">
+        <span class="chev">▶</span>
+        <span class="provider-chip openai">O</span>
+        <span class="pgroup-name">OpenAI</span>
+        <span class="pgroup-count">1 account</span>
+      </summary>
+      <div class="pgroup-body">
+        <div class="acct-card">
+          <div class="acct-card-head">
+            <span class="acct-email">work@openai.example</span>
+            <span class="acct-plan">Pro</span>
+          </div>
+          <div class="acct-stats">
+            <div class="astat">
+              <span class="alabel">5-hour</span>
+              <span class="aval">88%</span>
+              <span class="asub">resets 4h 40m</span>
+              <span class="abar"><span style="width: 88%; background: var(--ok);"></span></span>
+            </div>
+            <div class="astat">
+              <span class="alabel">Weekly</span>
+              <span class="aval">71%</span>
+              <span class="asub">resets 3d</span>
+              <span class="abar"><span style="width: 71%; background: var(--ok);"></span></span>
+            </div>
+            <div class="astat">
+              <span class="alabel">Fable</span>
+              <span class="aval" style="color: var(--text-tertiary); font-weight: 400;">—</span>
+              <span class="asub">&nbsp;</span>
+              <span class="abar" style="opacity: 0.35;"><span style="width: 0%;"></span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div class="divider"></div>
+    <div class="footer">
+      <button>Refresh</button>
+      <button>Settings…</button>
+      <button class="quit">Quit</button>
+    </div>
+  </div>
+  <p class="caption">
+    Roomiest treatment: each account is a bordered card with the email as its header and
+    the same three stat columns inside. Nicest for 1–2 accounts per provider; with your
+    "I keep adding accounts" scenario it gets tall fast — three Anthropic accounts is
+    ~3× the height of v1/v2. Card grid stays identical for OpenAI (dimmed Fable slot).
+  </p>
+</div>
+
+</body>
+</html>

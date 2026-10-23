@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VibeProxy — usage limits redesign</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: rgba(252, 252, 253, 0.86);
+    --text: #1d1d1f;
+    --text-secondary: #86868b;
+    --text-tertiary: #aeaeb2;
+    --border: rgba(0, 0, 0, 0.08);
+    --divider: rgba(0, 0, 0, 0.055);
+    --track: rgba(0, 0, 0, 0.08);
+    --hover: rgba(0, 0, 0, 0.045);
+    --ok: #30b155;
+    --warn: #c67c0a;
+    --critical: #d83a2f;
+    --accent: #0a7cff;
+    --chip-bg: rgba(0, 0, 0, 0.05);
+    --radius-lg: 13px;
+    --radius-md: 8px;
+    --radius-sm: 6px;
+    --page-ink: #4b5563;
+    --page-ink-soft: #6b7280;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: rgba(38, 38, 41, 0.84);
+      --text: #f5f5f7;
+      --text-secondary: #98989d;
+      --text-tertiary: #6e6e73;
+      --border: rgba(255, 255, 255, 0.09);
+      --divider: rgba(255, 255, 255, 0.07);
+      --track: rgba(255, 255, 255, 0.11);
+      --hover: rgba(255, 255, 255, 0.06);
+      --ok: #3dd062;
+      --warn: #eaa532;
+      --critical: #ff5147;
+      --accent: #4098ff;
+      --chip-bg: rgba(255, 255, 255, 0.08);
+      --page-ink: #c7cbd1;
+      --page-ink-soft: #9ca3af;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: rgba(252, 252, 253, 0.86);
+    --text: #1d1d1f; --text-secondary: #86868b; --text-tertiary: #aeaeb2;
+    --border: rgba(0,0,0,0.08); --divider: rgba(0,0,0,0.055);
+    --track: rgba(0,0,0,0.08); --hover: rgba(0,0,0,0.045);
+    --ok: #30b155; --warn: #c67c0a; --critical: #d83a2f; --accent: #0a7cff;
+    --chip-bg: rgba(0,0,0,0.05); --page-ink: #4b5563; --page-ink-soft: #6b7280;
+  }
+  :root[data-theme="dark"] {
+    --bg: rgba(38, 38, 41, 0.84);
+    --text: #f5f5f7; --text-secondary: #98989d; --text-tertiary: #6e6e73;
+    --border: rgba(255,255,255,0.09); --divider: rgba(255,255,255,0.07);
+    --track: rgba(255,255,255,0.11); --hover: rgba(255,255,255,0.06);
+    --ok: #3dd062; --warn: #eaa532; --critical: #ff5147; --accent: #4098ff;
+    --chip-bg: rgba(255,255,255,0.08); --page-ink: #c7cbd1; --page-ink-soft: #9ca3af;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 44px 40px 72px;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 18% 8%, #6a5acd1f, transparent 42%),
+      radial-gradient(circle at 82% 24%, #ff6b811a, transparent 42%),
+      linear-gradient(160deg, #eef1f6, #dfe4ee 60%, #d6dbe6);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    color: var(--page-ink);
+  }
+  @media (prefers-color-scheme: dark) {
+    body {
+      background:
+        radial-gradient(circle at 18% 8%, #3d307099, transparent 42%),
+        radial-gradient(circle at 82% 24%, #8a2f4020, transparent 42%),
+        linear-gradient(160deg, #1c1c1e, #17171a 60%, #101012);
+    }
+  }
+  :root[data-theme="dark"] body {
+    background:
+      radial-gradient(circle at 18% 8%, #3d307099, transparent 42%),
+      radial-gradient(circle at 82% 24%, #8a2f4020, transparent 42%),
+      linear-gradient(160deg, #1c1c1e, #17171a 60%, #101012);
+  }
+  :root[data-theme="light"] body {
+    background:
+      radial-gradient(circle at 18% 8%, #6a5acd1f, transparent 42%),
+      radial-gradient(circle at 82% 24%, #ff6b811a, transparent 42%),
+      linear-gradient(160deg, #eef1f6, #dfe4ee 60%, #d6dbe6);
+  }
+
+  .page-head { max-width: 1040px; margin: 0 auto 30px; }
+  .page-head h1 {
+    font-size: 24px; font-weight: 640; letter-spacing: -0.02em;
+    margin: 0 0 8px; color: var(--page-ink);
+    text-wrap: balance;
+  }
+  .page-head p {
+    font-size: 13.5px; line-height: 1.6; margin: 0; max-width: 68ch;
+    color: var(--page-ink-soft);
+  }
+  .page-head .thesis { color: var(--page-ink); font-weight: 500; }
+
+  .frames {
+    display: flex; align-items: flex-start; justify-content: center;
+    gap: 40px; flex-wrap: wrap; max-width: 1160px; margin: 0 auto;
+  }
+  .frame { width: 316px; }
+
+  .frame-label {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; margin: 0 0 4px 2px; color: var(--page-ink-soft);
+  }
+  .frame-sub {
+    font-size: 12px; line-height: 1.5; margin: 8px 4px 0; color: var(--page-ink-soft);
+  }
+  .tag {
+    display: inline-block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 20px; margin-left: 6px;
+    vertical-align: 2px;
+  }
+  .tag.now { background: rgba(216,58,47,0.12); color: #c0392b; }
+  .tag.rec { background: rgba(48,177,85,0.14); color: #1e874a; }
+  @media (prefers-color-scheme: dark) {
+    .tag.now { background: rgba(255,81,71,0.16); color: #ff8a80; }
+    .tag.rec { background: rgba(61,208,98,0.16); color: #7ee39a; }
+  }
+
+  /* ---------- popover shell ---------- */
+  .popover {
+    background: var(--bg);
+    backdrop-filter: blur(30px) saturate(1.7);
+    -webkit-backdrop-filter: blur(30px) saturate(1.7);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--border);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 14px 32px rgba(0,0,0,0.2), 0 2px 6px rgba(0,0,0,0.1);
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  .pop-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 12px 9px;
+  }
+  .pop-title { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .pop-title .t { font-size: 13px; font-weight: 650; letter-spacing: -0.01em; }
+  .pop-title .u { font-size: 10.5px; color: var(--text-tertiary); }
+  .pop-head .spacer { flex: 1; }
+
+  .icon-btn {
+    width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-sm); color: var(--text-secondary);
+    border: none; background: transparent; cursor: default; padding: 0;
+  }
+  .icon-btn:hover { background: var(--hover); color: var(--text); }
+  .icon-btn svg { width: 15px; height: 15px; display: block; }
+
+  .pop-body { padding: 0 6px 4px; }
+
+  .pop-foot {
+    display: flex; align-items: center; gap: 2px;
+    padding: 7px 8px 9px; border-top: 0.5px solid var(--divider); margin-top: 2px;
+  }
+  .pop-foot .spacer { flex: 1; }
+  .foot-btn {
+    border: none; background: transparent; color: var(--accent);
+    font-size: 12px; font-weight: 500; padding: 4px 8px; border-radius: var(--radius-sm); cursor: default;
+  }
+  .foot-btn:hover { background: var(--hover); }
+  .foot-btn.quiet { color: var(--text-secondary); }
+
+  /* ---------- provider group ---------- */
+  .pgroup { padding: 6px 6px 4px; }
+  .pgroup + .pgroup { border-top: 0.5px solid var(--divider); }
+  .pgroup-head {
+    display: flex; align-items: center; gap: 7px; padding: 4px 6px 6px;
+  }
+  .pchip {
+    width: 16px; height: 16px; border-radius: 5px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 800; color: #fff;
+  }
+  .pchip.anthropic { background: #d97757; }
+  .pchip.openai { background: #10a37f; }
+  .pgroup-name { font-size: 12.5px; font-weight: 600; letter-spacing: -0.01em; }
+  .pgroup-count {
+    font-size: 10px; font-weight: 600; color: var(--text-tertiary);
+    background: var(--chip-bg); border-radius: 20px; padding: 1px 7px;
+  }
+  .pgroup-head .spacer { flex: 1; }
+  .alert-pill {
+    font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 20px;
+    background: color-mix(in srgb, var(--critical) 14%, transparent); color: var(--critical);
+  }
+
+  /* ---------- grid ---------- */
+  .ugrid-head, .urow {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 50px 50px 50px;
+    gap: 8px; align-items: center;
+  }
+  .ugrid-head {
+    padding: 2px 8px 5px;
+    font-size: 9px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+  .ugrid-head .num { text-align: right; }
+
+  .urow {
+    padding: 7px 8px; border-radius: var(--radius-sm);
+  }
+  .urow:hover { background: var(--hover); }
+  .urow + .urow { border-top: 0.5px solid var(--divider); }
+
+  /* identity cell: email + inline controls, right-grouped */
+  .who { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .email {
+    font-size: 11.5px; color: var(--text); min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .who .ctl-spacer { flex: 1; }
+  .retry {
+    display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0;
+    font-size: 9.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums;
+  }
+  .retry svg { width: 10px; height: 10px; }
+  .power {
+    width: 18px; height: 18px; flex-shrink: 0; border-radius: 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text-tertiary); border: none; background: transparent; cursor: default;
+  }
+  .power:hover { background: var(--hover); }
+  .power svg { width: 12px; height: 12px; }
+  .power.on { color: var(--text-secondary); }
+  .power.off { color: var(--text-tertiary); }
+
+  /* metric cell */
+  .cell { text-align: right; font-variant-numeric: tabular-nums; }
+  .cell .val { font-size: 12px; font-weight: 550; color: var(--text); letter-spacing: -0.01em; }
+  .cell .sub { display: block; font-size: 9px; color: var(--text-tertiary); margin-top: 1px; }
+  .cell.na .val { color: var(--text-tertiary); font-weight: 400; }
+  .cell.warn .val { color: var(--warn); }
+  .cell.crit .val { color: var(--critical); }
+  .cell.crit .sub { color: color-mix(in srgb, var(--critical) 72%, var(--text-tertiary)); }
+
+  /* disabled row */
+  .urow.disabled .email { color: var(--text-tertiary); text-decoration: line-through; text-decoration-color: var(--text-tertiary); }
+  .urow.disabled .cell .val { color: var(--text-tertiary); }
+
+  /* hairline meter (frame C) */
+  .meter { display: block; height: 2px; border-radius: 2px; background: var(--track); margin-top: 5px; overflow: hidden; }
+  .meter > i { display: block; height: 100%; border-radius: 2px; background: var(--text-tertiary); }
+  .cell.warn .meter > i { background: var(--warn); }
+  .cell.crit .meter { background: color-mix(in srgb, var(--critical) 16%, var(--track)); }
+  .cell.crit .meter > i { background: var(--critical); }
+  .cell.na .meter { opacity: 0; }
+
+  /* ---------- baseline (current) styling ---------- */
+  .b-val { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .b-blue { color: #2f7be8; }
+  .b-red { color: var(--critical); }
+  .b-orange { color: #e8901f; }
+  .b-sub { display:block; font-size: 9px; font-weight: 400; color: var(--text-tertiary); margin-top:1px; }
+  .b-bar { display:block; height:3px; border-radius:2px; background: var(--track); margin-top:4px; overflow:hidden;}
+  .b-bar > i { display:block; height:100%; border-radius:2px; }
+  .b-power {
+    width: 18px; height: 18px; border-radius: 50%; flex-shrink:0;
+    display:inline-flex; align-items:center; justify-content:center; color:#fff;
+  }
+  .b-power.on { background: var(--ok); }
+  .b-power.off { background: var(--track); color: var(--text-tertiary); }
+  .b-power svg { width: 11px; height: 11px; }
+  .b-retry { color: #2f7be8; font-size: 9.5px; display:inline-flex; align-items:center; gap:2px; }
+  .b-retry svg { width: 10px; height: 10px; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>Usage limits — quieter by default</h1>
+  <p>
+    <span class="thesis">One rule drives the redesign: color marks exceptions, nothing else.</span>
+    Today every percentage is saturated, so seven healthy numbers shout as loudly as the two real
+    problems. When healthy numbers drop to plain ink, amber (running low) and red (exhausted) become
+    the only colored things on screen — and they read instantly. Same data, same columns, same
+    action buttons up top. Just less noise.
+  </p>
+</div>
+
+<div class="frames">
+
+  <!-- ============ CURRENT (baseline) ============ -->
+  <div class="frame">
+    <p class="frame-label">Current <span class="tag now">today</span></p>
+    <div class="popover">
+      <div class="pop-head">
+        <div class="pop-title">
+          <span class="t">Usage limits</span>
+          <span class="u">Updated 10:19</span>
+        </div>
+        <span class="spacer"></span>
+        <button class="icon-btn" title="Hide inactive">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button class="icon-btn" title="Refresh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
+        </button>
+      </div>
+
+      <div class="pop-body">
+        <div class="pgroup">
+          <div class="pgroup-head">
+            <span class="pchip anthropic">✳</span>
+            <span class="pgroup-name">Anthropic</span>
+            <span class="pgroup-count">3</span>
+            <span class="alert-pill">2</span>
+            <span class="spacer"></span>
+          </div>
+          <div class="ugrid-head">
+            <span>Account</span><span class="num">5-hour</span><span class="num">Weekly</span><span class="num">Fable</span>
+          </div>
+          <div class="urow">
+            <span class="who"><span class="email">team@ex…le.com</span><span class="ctl-spacer"></span>
+              <button class="b-power on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell"><span class="b-val b-blue">97%</span><span class="b-sub">in 2h</span><span class="b-bar"><i style="width:97%;background:#2f7be8"></i></span></span>
+            <span class="cell"><span class="b-val b-blue">37%</span><span class="b-sub">in 10h</span><span class="b-bar"><i style="width:37%;background:#2f7be8"></i></span></span>
+            <span class="cell"><span class="b-val b-red">0%</span><span class="b-sub">in 10h</span><span class="b-bar"><i style="width:2%;background:var(--critical)"></i></span></span>
+          </div>
+          <div class="urow">
+            <span class="who"><span class="email">work@example.com</span><span class="ctl-spacer"></span>
+              <button class="b-power on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell"><span class="b-val b-blue">21%</span><span class="b-sub">in 2h</span><span class="b-bar"><i style="width:21%;background:#2f7be8"></i></span></span>
+            <span class="cell"><span class="b-val b-blue">38%</span><span class="b-sub">in 5d</span><span class="b-bar"><i style="width:38%;background:#2f7be8"></i></span></span>
+            <span class="cell"><span class="b-val b-red">0%</span><span class="b-sub">in 5d</span><span class="b-bar"><i style="width:2%;background:var(--critical)"></i></span></span>
+          </div>
+          <div class="urow">
+            <span class="who"><span class="email">personal…gmail.com</span><span class="ctl-spacer"></span>
+              <button class="b-power on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell"><span class="b-val b-blue">94%</span><span class="b-sub">in 3h</span><span class="b-bar"><i style="width:94%;background:#2f7be8"></i></span></span>
+            <span class="cell"><span class="b-val b-blue">47%</span><span class="b-sub">in 6d</span><span class="b-bar"><i style="width:47%;background:#2f7be8"></i></span></span>
+            <span class="cell"><span class="b-val b-orange">5%</span><span class="b-sub">in 6d</span><span class="b-bar"><i style="width:5%;background:#e8901f"></i></span></span>
+          </div>
+        </div>
+
+        <div class="pgroup">
+          <div class="pgroup-head">
+            <span class="pchip openai">⊚</span>
+            <span class="pgroup-name">OpenAI</span>
+            <span class="pgroup-count">2</span>
+            <span class="spacer"></span>
+          </div>
+          <div class="ugrid-head">
+            <span>Account</span><span class="num">5-hour</span><span class="num">Weekly</span><span class="num">Fable</span>
+          </div>
+          <div class="urow disabled">
+            <span class="who"><span class="email">client@…e.com</span><span class="ctl-spacer"></span>
+              <span class="b-retry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>2</span>
+              <button class="b-power off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell na"><span class="b-val" style="color:var(--text-tertiary);font-weight:400">—</span></span>
+            <span class="cell"><span class="b-val b-red" style="opacity:.5">0%</span><span class="b-sub">in 7d</span></span>
+            <span class="cell na"><span class="b-val" style="color:var(--text-tertiary);font-weight:400">—</span></span>
+          </div>
+          <div class="urow">
+            <span class="who"><span class="email">person…il.com</span><span class="ctl-spacer"></span>
+              <span class="b-retry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>1</span>
+              <button class="b-power on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell na"><span class="b-val" style="color:var(--text-tertiary);font-weight:400">—</span></span>
+            <span class="cell"><span class="b-val b-blue">94%</span><span class="b-sub">in 7d</span><span class="b-bar"><i style="width:94%;background:#2f7be8"></i></span></span>
+            <span class="cell na"><span class="b-val" style="color:var(--text-tertiary);font-weight:400">—</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pop-foot">
+        <button class="foot-btn">Refresh</button>
+        <span class="spacer"></span>
+        <button class="foot-btn">Settings…</button>
+        <button class="foot-btn quiet">Quit</button>
+      </div>
+    </div>
+    <p class="frame-sub">Reconstructed from your screenshot. Blue, red, amber, and green all compete; the eye lands nowhere in particular.</p>
+  </div>
+
+  <!-- ============ OPTION A — Calm ink ============ -->
+  <div class="frame">
+    <p class="frame-label">Option A · Calm ink <span class="tag rec">recommended</span></p>
+    <div class="popover">
+      <div class="pop-head">
+        <div class="pop-title">
+          <span class="t">Usage limits</span>
+          <span class="u">Updated 10:19</span>
+        </div>
+        <span class="spacer"></span>
+        <button class="icon-btn" title="Hide inactive">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button class="icon-btn" title="Refresh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
+        </button>
+      </div>
+
+      <div class="pop-body">
+        <div class="pgroup">
+          <div class="pgroup-head">
+            <span class="pchip anthropic">✳</span>
+            <span class="pgroup-name">Anthropic</span>
+            <span class="pgroup-count">3</span>
+            <span class="spacer"></span>
+            <span class="alert-pill">2 exhausted</span>
+          </div>
+          <div class="ugrid-head">
+            <span>Account</span><span class="num">5-hour</span><span class="num">Weekly</span><span class="num">Fable</span>
+          </div>
+          <div class="urow">
+            <span class="who"><span class="email">team@ex…le.com</span><span class="ctl-spacer"></span>
+              <button class="power on" title="Enabled"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell"><span class="val">97%</span><span class="sub">2h</span></span>
+            <span class="cell"><span class="val">37%</span><span class="sub">10h</span></span>
+            <span class="cell crit"><span class="val">0%</span><span class="sub">10h</span></span>
+          </div>
+          <div class="urow">
+            <span class="who"><span class="email">work@example.com</span><span class="ctl-spacer"></span>
+              <button class="power on" title="Enabled"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell"><span class="val">21%</span><span class="sub">2h</span></span>
+            <span class="cell"><span class="val">38%</span><span class="sub">5d</span></span>
+            <span class="cell crit"><span class="val">0%</span><span class="sub">5d</span></span>
+          </div>
+          <div class="urow">
+            <span class="who"><span class="email">personal…gmail.com</span><span class="ctl-spacer"></span>
+              <button class="power on" title="Enabled"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell"><span class="val">94%</span><span class="sub">3h</span></span>
+            <span class="cell"><span class="val">47%</span><span class="sub">6d</span></span>
+            <span class="cell warn"><span class="val">5%</span><span class="sub">6d</span></span>
+          </div>
+        </div>
+
+        <div class="pgroup">
+          <div class="pgroup-head">
+            <span class="pchip openai">⊚</span>
+            <span class="pgroup-name">OpenAI</span>
+            <span class="pgroup-count">2</span>
+            <span class="spacer"></span>
+          </div>
+          <div class="ugrid-head">
+            <span>Account</span><span class="num">5-hour</span><span class="num">Weekly</span><span class="num">Fable</span>
+          </div>
+          <div class="urow disabled">
+            <span class="who"><span class="email">client@…e.com</span><span class="ctl-spacer"></span>
+              <span class="retry" title="2 retries before failover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>2</span>
+              <button class="power off" title="Disabled"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell na"><span class="val">—</span></span>
+            <span class="cell crit"><span class="val">0%</span><span class="sub">7d</span></span>
+            <span class="cell na"><span class="val">—</span></span>
+          </div>
+          <div class="urow">
+            <span class="who"><span class="email">person…il.com</span><span class="ctl-spacer"></span>
+              <span class="retry" title="1 retry before failover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>1</span>
+              <button class="power on" title="Enabled"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell na"><span class="val">—</span></span>
+            <span class="cell"><span class="val">94%</span><span class="sub">7d</span></span>
+            <span class="cell na"><span class="val">—</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pop-foot">
+        <button class="foot-btn">Refresh</button>
+        <span class="spacer"></span>
+        <button class="foot-btn">Settings…</button>
+        <button class="foot-btn quiet">Quit</button>
+      </div>
+    </div>
+    <p class="frame-sub">Healthy numbers are ink. The only color left is the two red 0% cells and one amber 5% — exactly what you'd want to act on. The power toggle rests quiet when on, so “off” actually reads as off.</p>
+  </div>
+
+  <!-- ============ OPTION B — Ink + hairline meter ============ -->
+  <div class="frame">
+    <p class="frame-label">Option B · Ink + hairline meter</p>
+    <div class="popover">
+      <div class="pop-head">
+        <div class="pop-title">
+          <span class="t">Usage limits</span>
+          <span class="u">Updated 10:19</span>
+        </div>
+        <span class="spacer"></span>
+        <button class="icon-btn" title="Hide inactive">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button class="icon-btn" title="Refresh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>
+        </button>
+      </div>
+
+      <div class="pop-body">
+        <div class="pgroup">
+          <div class="pgroup-head">
+            <span class="pchip anthropic">✳</span>
+            <span class="pgroup-name">Anthropic</span>
+            <span class="pgroup-count">3</span>
+            <span class="spacer"></span>
+            <span class="alert-pill">2 exhausted</span>
+          </div>
+          <div class="ugrid-head">
+            <span>Account</span><span class="num">5-hour</span><span class="num">Weekly</span><span class="num">Fable</span>
+          </div>
+          <div class="urow">
+            <span class="who"><span class="email">team@ex…le.com</span><span class="ctl-spacer"></span>
+              <button class="power on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell"><span class="val">97%</span><span class="sub">2h</span><span class="meter"><i style="width:97%"></i></span></span>
+            <span class="cell"><span class="val">37%</span><span class="sub">10h</span><span class="meter"><i style="width:37%"></i></span></span>
+            <span class="cell crit"><span class="val">0%</span><span class="sub">10h</span><span class="meter"><i style="width:3%"></i></span></span>
+          </div>
+          <div class="urow">
+            <span class="who"><span class="email">work@example.com</span><span class="ctl-spacer"></span>
+              <button class="power on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell"><span class="val">21%</span><span class="sub">2h</span><span class="meter"><i style="width:21%"></i></span></span>
+            <span class="cell"><span class="val">38%</span><span class="sub">5d</span><span class="meter"><i style="width:38%"></i></span></span>
+            <span class="cell crit"><span class="val">0%</span><span class="sub">5d</span><span class="meter"><i style="width:3%"></i></span></span>
+          </div>
+          <div class="urow">
+            <span class="who"><span class="email">personal…gmail.com</span><span class="ctl-spacer"></span>
+              <button class="power on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell"><span class="val">94%</span><span class="sub">3h</span><span class="meter"><i style="width:94%"></i></span></span>
+            <span class="cell"><span class="val">47%</span><span class="sub">6d</span><span class="meter"><i style="width:47%"></i></span></span>
+            <span class="cell warn"><span class="val">5%</span><span class="sub">6d</span><span class="meter"><i style="width:5%"></i></span></span>
+          </div>
+        </div>
+
+        <div class="pgroup">
+          <div class="pgroup-head">
+            <span class="pchip openai">⊚</span>
+            <span class="pgroup-name">OpenAI</span>
+            <span class="pgroup-count">2</span>
+            <span class="spacer"></span>
+          </div>
+          <div class="ugrid-head">
+            <span>Account</span><span class="num">5-hour</span><span class="num">Weekly</span><span class="num">Fable</span>
+          </div>
+          <div class="urow disabled">
+            <span class="who"><span class="email">client@…e.com</span><span class="ctl-spacer"></span>
+              <span class="retry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>2</span>
+              <button class="power off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell na"><span class="val">—</span></span>
+            <span class="cell crit"><span class="val">0%</span><span class="sub">7d</span><span class="meter"><i style="width:3%"></i></span></span>
+            <span class="cell na"><span class="val">—</span></span>
+          </div>
+          <div class="urow">
+            <span class="who"><span class="email">person…il.com</span><span class="ctl-spacer"></span>
+              <span class="retry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v5h-5"/></svg>1</span>
+              <button class="power on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v9"/><path d="M6.3 6.3a8 8 0 1 0 11.4 0"/></svg></button></span>
+            <span class="cell na"><span class="val">—</span></span>
+            <span class="cell"><span class="val">94%</span><span class="sub">7d</span><span class="meter"><i style="width:94%"></i></span></span>
+            <span class="cell na"><span class="val">—</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="pop-foot">
+        <button class="foot-btn">Refresh</button>
+        <span class="spacer"></span>
+        <button class="foot-btn">Settings…</button>
+        <button class="foot-btn quiet">Quit</button>
+      </div>
+    </div>
+    <p class="frame-sub">Same calm palette, plus a 2px neutral meter so you can gauge headroom without reading digits. The meter tints only when the cell is at risk — grey elsewhere.</p>
+  </div>
+
+</div>
+
+</body>
+</html>

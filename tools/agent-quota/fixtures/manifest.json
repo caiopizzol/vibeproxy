@@ -1,0 +1,5 @@
+{
+  "file": "quota.json",
+  "sha256": "d39f681839b9c8bf8aa6fc2964265d9dfa9fc04f3f493aac0503fb6e48281bd3",
+  "property": "Synthetic account states and current/legacy Claude quota shapes; scoped quota only in limits; inactive windows retained; paid spend excluded. No real account or credential data."
+}

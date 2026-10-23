@@ -1,0 +1,12 @@
+{
+  "name": "agent-quota",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit && bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.12",
+    "typescript": "^5.9.0"
+  }
+}
