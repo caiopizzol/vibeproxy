@@ -223,7 +223,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNoti
         window.delegate = self
         window.isReleasedWhenClosed = false
 
-        let contentView = SettingsView(serverManager: serverManager, authManager: authManager)
+        let contentView = SettingsView(serverManager: serverManager, authManager: authManager, quotaStore: serverManager.quotaStore)
         window.contentView = NSHostingView(rootView: contentView)
 
         settingsWindow = window

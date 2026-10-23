@@ -9,7 +9,8 @@ struct AccountRowView: View {
     let isLastEnabled: Bool
     let onToggleDisabled: () -> Void
     let onRemove: () -> Void
-    
+    var keepWarm: Binding<Bool>? = nil
+
     var body: some View {
         HStack(spacing: 8) {
             Circle()
@@ -28,6 +29,14 @@ struct AccountRowView: View {
                 Text("(disabled)")
                     .font(.caption2)
                     .foregroundColor(.secondary)
+            }
+            if let keepWarm {
+                Toggle("Keep warm", isOn: keepWarm)
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .help("Start a new 5-hour window as soon as the previous one ends")
             }
             if showDisableToggle {
                 let canDisable = account.isDisabled || !isLastEnabled
@@ -111,6 +120,7 @@ struct ServiceRow<ExtraContent: View>: View {
     let onToggleDisabled: (AuthAccount) -> Void
     let onToggleEnabled: (Bool) -> Void
     var onExpandChange: ((Bool) -> Void)? = nil
+    var keepWarm: ((AuthAccount) -> Binding<Bool>)? = nil
     @ViewBuilder var extraContent: () -> ExtraContent
 
     @State private var isExpanded = false
@@ -200,10 +210,10 @@ struct ServiceRow<ExtraContent: View>: View {
                             ForEach(accounts) { account in
                                 AccountRowView(account: account, removeColor: removeColor, showDisableToggle: accounts.count > 1 || account.isDisabled, isLastEnabled: !account.isDisabled && enabledCount <= 1, onToggleDisabled: {
                                     onToggleDisabled(account)
-                                }) {
+                                }, onRemove: {
                                     accountToRemove = account
                                     showingRemoveConfirmation = true
-                                }
+                                }, keepWarm: keepWarm?(account))
                             }
                             extraContent()
                         }
@@ -492,6 +502,7 @@ struct CustomProviderRow: View {
 struct SettingsView: View {
     @ObservedObject var serverManager: ServerManager
     @ObservedObject var authManager: AuthManager
+    @ObservedObject var quotaStore: QuotaStore
     @State private var launchAtLogin = false
     @State private var authenticatingService: ServiceType? = nil
     @State private var authenticatingCustomProviderID: String? = nil
@@ -626,7 +637,13 @@ struct SettingsView: View {
                         onDisconnect: { account in disconnectAccount(account) },
                         onToggleDisabled: { account in toggleAccountDisabled(account) },
                         onToggleEnabled: { enabled in serverManager.setProviderEnabled("claude", enabled: enabled) },
-                        onExpandChange: { expanded in expandedRowCount += expanded ? 1 : -1 }
+                        onExpandChange: { expanded in expandedRowCount += expanded ? 1 : -1 },
+                        keepWarm: { account in
+                            Binding(
+                                get: { quotaStore.keepWarmAccountIDs.contains(account.id) },
+                                set: { quotaStore.setKeepWarm($0, for: account) }
+                            )
+                        }
                     ) {
                         VercelGatewayControls(serverManager: serverManager)
                     }

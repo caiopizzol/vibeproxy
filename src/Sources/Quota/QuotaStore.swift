@@ -18,11 +18,17 @@ final class QuotaStore: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var isManualRefreshCoolingDown = false
     @Published private(set) var lastUpdated: Date?
+    @Published private(set) var keepWarmAccountIDs: Set<String>
 
     private var client: CLIProxyManagementClient
     private let freshnessInterval: TimeInterval
     private let manualRefreshCooldown: TimeInterval
     private let now: @Sendable () -> Date
+    private let defaults: UserDefaults
+    private var lastWarmUpAttempts: [String: Date] = [:]
+    private static let keepWarmKey = "keepWarmClaudeAccounts"
+    /// Retry spacing when a warm-up does not open a window, so a failing account is not pinged on every refresh.
+    private static let warmUpRetryInterval: TimeInterval = 30 * 60
     private var refreshTask: Task<Void, Never>?
     private var manualRefreshCooldownTask: Task<Void, Never>?
     private var monitoringCancellables: Set<AnyCancellable> = []
@@ -33,12 +39,46 @@ final class QuotaStore: ObservableObject {
         client: CLIProxyManagementClient,
         freshnessInterval: TimeInterval = 300,
         manualRefreshCooldown: TimeInterval = 15,
-        now: @escaping @Sendable () -> Date = { Date() }
+        now: @escaping @Sendable () -> Date = { Date() },
+        defaults: UserDefaults = .standard
     ) {
         self.client = client
         self.freshnessInterval = freshnessInterval
         self.manualRefreshCooldown = manualRefreshCooldown
         self.now = now
+        self.defaults = defaults
+        keepWarmAccountIDs = Set(defaults.stringArray(forKey: Self.keepWarmKey) ?? [])
+    }
+
+    @MainActor
+    func setKeepWarm(_ enabled: Bool, for account: AuthAccount) {
+        if enabled {
+            keepWarmAccountIDs.insert(account.id)
+        } else {
+            keepWarmAccountIDs.remove(account.id)
+        }
+        defaults.set(keepWarmAccountIDs.sorted(), forKey: Self.keepWarmKey)
+        if enabled, monitoredServerIsRunning {
+            refresh(accounts: monitoredAccounts, force: true)
+        }
+    }
+
+    /// A warm-up only makes sense when no 5-hour window is open and the weekly limit has room.
+    /// With the weekly limit used up, Anthropic bills the message as extra usage instead.
+    static func needsWarmUp(_ account: AuthAccount, state: AccountQuotaState?) -> Bool {
+        guard account.type == .claude,
+              !account.isDisabled,
+              let state,
+              state.failure == nil,
+              let snapshot = state.snapshot,
+              !snapshot.isStale,
+              let session = snapshot.window(.fiveHour),
+              session.resetsAt == nil,
+              let weekly = snapshot.window(.weekly),
+              weekly.remainingPercent > 0 else {
+            return false
+        }
+        return true
     }
 
     func updateClient(_ client: CLIProxyManagementClient) {
@@ -154,6 +194,31 @@ final class QuotaStore: ObservableObject {
             self.lastUpdated = results.compactMap { $0.snapshot?.isStale == false ? $0.snapshot?.fetchedAt : nil }.max() ?? self.lastUpdated
             self.isRefreshing = false
             self.refreshTask = nil
+            self.warmUpIdleAccounts(accounts)
+        }
+    }
+
+    @MainActor
+    private func warmUpIdleAccounts(_ accounts: [AuthAccount]) {
+        let current = now()
+        let idle = accounts.filter { account in
+            keepWarmAccountIDs.contains(account.id)
+                && Self.needsWarmUp(account, state: states[account.id])
+                && lastWarmUpAttempts[account.id].map { current.timeIntervalSince($0) >= Self.warmUpRetryInterval } ?? true
+        }
+        guard !idle.isEmpty else { return }
+        for account in idle {
+            lastWarmUpAttempts[account.id] = current
+        }
+
+        let client = client
+        Task { @MainActor [weak self] in
+            guard let files = try? await client.fetchAuthFiles() else { return }
+            for account in idle {
+                guard let file = files.first(where: { $0.name == account.id }) else { continue }
+                try? await client.warmUpClaude(file)
+            }
+            self?.refresh(accounts: accounts, force: true)
         }
     }
 

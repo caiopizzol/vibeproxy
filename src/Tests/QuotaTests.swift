@@ -286,6 +286,87 @@ final class QuotaTests: XCTestCase {
         XCTAssertEqual(store.states[account.id]?.snapshot?.resetCredits?.applicableAvailableCount, 2)
     }
 
+    func testWarmUpOnlyWhenNoWindowIsOpenAndWeeklyHasRoom() {
+        let account = claudeAccount(id: "claude.json")
+        let reset = Date(timeIntervalSince1970: 1_900_000_000)
+        func state(session: Date?, weeklyUsed: Double, failure: QuotaFailure? = nil, stale: Bool = false) -> AccountQuotaState {
+            AccountQuotaState(
+                snapshot: QuotaSnapshot(
+                    provider: .anthropic,
+                    windows: [
+                        QuotaWindow(kind: .fiveHour, usedPercent: 0, resetsAt: session),
+                        QuotaWindow(kind: .weekly, usedPercent: weeklyUsed, resetsAt: reset)
+                    ],
+                    fetchedAt: Date(),
+                    isStale: stale
+                ),
+                failure: failure
+            )
+        }
+
+        XCTAssertTrue(QuotaStore.needsWarmUp(account, state: state(session: nil, weeklyUsed: 50)))
+        XCTAssertFalse(QuotaStore.needsWarmUp(account, state: state(session: reset, weeklyUsed: 50)), "window already open")
+        XCTAssertFalse(QuotaStore.needsWarmUp(account, state: state(session: nil, weeklyUsed: 100)), "would bill extra usage")
+        XCTAssertFalse(QuotaStore.needsWarmUp(account, state: state(session: nil, weeklyUsed: 50, failure: .rateLimited)))
+        XCTAssertFalse(QuotaStore.needsWarmUp(account, state: state(session: nil, weeklyUsed: 50, stale: true)))
+        XCTAssertFalse(QuotaStore.needsWarmUp(account, state: nil))
+        XCTAssertFalse(QuotaStore.needsWarmUp(claudeAccount(id: "claude.json", disabled: true), state: state(session: nil, weeklyUsed: 50)))
+    }
+
+    @MainActor
+    func testKeepWarmSendsOneHaikuMessageOnlyForOptedInAccounts() async throws {
+        let authFiles = Data(#"""
+        {"files":[
+          {"auth_index":"auth-warm","name":"claude-warm.json","provider":"claude"},
+          {"auth_index":"auth-cold","name":"claude-cold.json","provider":"claude"}
+        ]}
+        """#.utf8)
+        let idle = try JSONSerialization.data(withJSONObject: ["status_code": 200, "body": #"{"limits":[{"kind":"session","percent":0,"resets_at":null},{"kind":"weekly_all","percent":40,"resets_at":"2030-01-05T10:00:00Z"}]}"#])
+        let open = try JSONSerialization.data(withJSONObject: ["status_code": 200, "body": #"{"limits":[{"kind":"session","percent":1,"resets_at":"2030-01-01T15:00:00Z"},{"kind":"weekly_all","percent":40,"resets_at":"2030-01-05T10:00:00Z"}]}"#])
+        let message = try JSONSerialization.data(withJSONObject: ["status_code": 200, "body": #"{"type":"message"}"#])
+        let transport = QuotaTestTransport(responses: [
+            QuotaTestResponse(statusCode: 200, data: authFiles),
+            QuotaTestResponse(statusCode: 200, data: idle),
+            QuotaTestResponse(statusCode: 200, data: idle),
+            QuotaTestResponse(statusCode: 200, data: authFiles),
+            QuotaTestResponse(statusCode: 200, data: message),
+            QuotaTestResponse(statusCode: 200, data: authFiles),
+            QuotaTestResponse(statusCode: 200, data: open),
+            QuotaTestResponse(statusCode: 200, data: idle)
+        ])
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "keep-warm-\(UUID().uuidString)"))
+        let store = QuotaStore(client: testClient(transport: transport), defaults: defaults)
+        let warm = claudeAccount(id: "claude-warm.json")
+        let cold = claudeAccount(id: "claude-cold.json")
+        store.setKeepWarm(true, for: warm)
+
+        store.refresh(accounts: [warm, cold])
+        for _ in 0 ..< 200 {
+            if await transport.recordedRequests().count == 8, !store.isRefreshing { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        let requests = await transport.recordedRequests()
+        let warmUps = try requests.filter { $0.httpBody != nil }.map(requestObject).filter { ($0["url"] as? String)?.contains("/v1/messages") == true }
+        XCTAssertEqual(warmUps.count, 1)
+        XCTAssertEqual(warmUps.first?["auth_index"] as? String, "auth-warm")
+        XCTAssertEqual(warmUps.first?["method"] as? String, "POST")
+        XCTAssertNotNil(store.states[warm.id]?.snapshot?.window(.fiveHour)?.resetsAt, "refresh after warm-up shows the open window")
+        XCTAssertEqual(defaults.stringArray(forKey: "keepWarmClaudeAccounts"), ["claude-warm.json"])
+    }
+
+    private func claudeAccount(id: String, disabled: Bool = false) -> AuthAccount {
+        AuthAccount(
+            id: id,
+            email: "\(id)@example.com",
+            login: nil,
+            type: .claude,
+            expired: nil,
+            filePath: URL(fileURLWithPath: "/tmp/\(id)"),
+            isDisabled: disabled
+        )
+    }
+
     private func testClient(transport: QuotaTestTransport) -> CLIProxyManagementClient {
         CLIProxyManagementClient(
             baseURL: URL(string: "http://127.0.0.1:8318")!,

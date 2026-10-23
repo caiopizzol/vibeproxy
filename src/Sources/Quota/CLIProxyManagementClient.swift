@@ -157,6 +157,29 @@ struct CLIProxyManagementClient: Sendable {
         return try CodexResetCreditDecoder.decodeOutcome(data)
     }
 
+    /// Sends a one-token Haiku message so Anthropic opens the account's 5-hour window now.
+    /// The OAuth messages endpoint only accepts Claude Code's identity (a plain request gets 429).
+    func warmUpClaude(_ authFile: ProxyAuthFile) async throws {
+        guard authFile.provider.caseInsensitiveCompare(QuotaProvider.anthropic.rawValue) == .orderedSame else {
+            throw QuotaFailure.accountUnavailable
+        }
+        let message = #"{"model":"claude-haiku-4-5","max_tokens":1,"system":[{"type":"text","text":"You are Claude Code, Anthropic's official CLI for Claude."}],"messages":[{"role":"user","content":"hi"}]}"#
+        _ = try await performAPICall(
+            authFile: authFile,
+            method: "POST",
+            url: "https://api.anthropic.com/v1/messages?beta=true",
+            headers: [
+                "Authorization": "Bearer $TOKEN$",
+                "anthropic-version": "2023-06-01",
+                "anthropic-beta": "claude-code-20250219,oauth-2025-04-20",
+                "Content-Type": "application/json",
+                "User-Agent": "claude-cli/2.1.280 (external, cli)",
+                "x-app": "cli"
+            ],
+            data: message
+        )
+    }
+
     private func performAPICall(
         authFile: ProxyAuthFile,
         method: String,
